@@ -1,9 +1,9 @@
 import asyncio
-import wave
+import logging
 import os
 import tempfile
 import uuid
-import logging
+import wave
 
 from livekit import rtc
 from livekit.agents import stt
@@ -30,31 +30,31 @@ class SarvamSTT(stt.STT):
     ) -> stt.SpeechEvent:
         if not buffer:
             return stt.SpeechEvent(type=stt.SpeechEventType.FINAL_TRANSCRIPT, alternatives=[])
-            
+
         # Buffer can be a single AudioFrame or a list of AudioFrames
         if isinstance(buffer, rtc.AudioFrame):
             frames = [buffer]
         else:
             frames = buffer
-            
+
         if not frames:
             return stt.SpeechEvent(type=stt.SpeechEventType.FINAL_TRANSCRIPT, alternatives=[])
-            
+
         sample_rate = frames[0].sample_rate
         num_channels = frames[0].num_channels
-        
+
         # Resample to 16000 Hz, which is the standard for ASR models
         resampler = rtc.AudioResampler(input_rate=sample_rate, output_rate=16000, num_channels=num_channels)
         resampled_frames = []
         for f in frames:
             resampled_frames.extend(resampler.push(f))
         resampled_frames.extend(resampler.flush())
-        
+
         raw_audio = b"".join(bytes(f.data) for f in resampled_frames)
         duration_sec = len(raw_audio) / (16000 * 2) # 16-bit PCM = 2 bytes per sample
-        
+
         logger.info(f"Voice detected: Processing {duration_sec:.2f}s of audio...")
-        
+
         # Save to temp file
         tmp_path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.wav")
         with wave.open(tmp_path, "wb") as wav_file:
@@ -62,7 +62,7 @@ class SarvamSTT(stt.STT):
             wav_file.setsampwidth(2)  # 16-bit
             wav_file.setframerate(16000)
             wav_file.writeframes(raw_audio)
-            
+
         def do_transcribe():
             try:
                 with open(tmp_path, "rb") as audio_file:
@@ -79,7 +79,7 @@ class SarvamSTT(stt.STT):
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
-                    
+
         try:
             transcript = await asyncio.to_thread(do_transcribe)
             return stt.SpeechEvent(
