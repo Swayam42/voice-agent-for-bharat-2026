@@ -23,7 +23,7 @@ export function MicPermissionBanner({
     <div
       role="alert"
       className={cn(
-        'mx-auto w-full max-w-md rounded-3xl border border-foreground/20 bg-background p-5 shadow-sm',
+        'mx-auto w-full max-w-md pencil-box bg-background p-5 shadow-sm',
         className
       )}
     >
@@ -47,7 +47,7 @@ export function MicPermissionBanner({
             {onRetry && (
               <Button
                 onClick={onRetry}
-                className="h-11 min-w-[7.5rem] rounded-full px-5 font-hand text-base"
+                className="pencil-box h-11 min-w-[7.5rem] bg-foreground text-black hover:bg-foreground/90 px-5 font-hand text-base"
               >
                 Try again
               </Button>
@@ -56,7 +56,7 @@ export function MicPermissionBanner({
               <Button
                 variant="outline"
                 onClick={onDismiss}
-                className="h-11 rounded-full border-foreground/20 px-5 font-hand text-base"
+                className="pencil-box h-11 border-2 border-foreground hover:bg-accent px-5 font-hand text-base"
               >
                 Dismiss
               </Button>

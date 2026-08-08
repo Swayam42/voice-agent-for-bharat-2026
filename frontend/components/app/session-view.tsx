@@ -171,15 +171,6 @@ export function SessionView({
                 </AgentAudioVisualizerBar>
               </div>
 
-              <p className="font-hand mt-6 text-center text-base text-muted-foreground sm:text-lg">
-                {statusPhase === 'speaking'
-                  ? 'Agent is speaking'
-                  : statusPhase === 'listening'
-                    ? 'Listening to you'
-                    : statusPhase === 'thinking'
-                      ? 'Preparing an answer…'
-                      : 'Getting ready…'}
-              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -248,14 +239,11 @@ export function SessionView({
             <Button
               type="button"
               size="lg"
-              variant="outline"
+              variant={microphoneToggle.enabled ? 'outline' : 'default'}
               disabled={microphoneToggle.pending}
               onClick={() => microphoneToggle.toggle()}
               aria-label={microphoneToggle.enabled ? 'Mute microphone' : 'Unmute microphone'}
-              className={cn(
-                'size-16 p-0 shadow-none sm:size-[4.25rem]',
-                microphoneToggle.enabled ? 'pencil-circle' : 'pencil-circle solid'
-              )}
+              className="size-16 p-0 shadow-none sm:size-[4.25rem] pencil-circle transition-all"
             >
               {microphoneToggle.enabled ? (
                 <MicIcon className="size-6" strokeWidth={1.75} />
