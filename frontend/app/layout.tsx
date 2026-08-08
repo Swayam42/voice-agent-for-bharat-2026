@@ -92,11 +92,8 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         >
           {/* Minimal top brand — phone friendly, no clutter */}
           <header className="pointer-events-none fixed top-0 left-0 z-50 flex w-full items-center justify-between px-5 pt-4 sm:px-6 sm:pt-5">
-            <span className="font-display pointer-events-auto text-lg tracking-wide text-foreground/70 sm:text-xl">
+            <span className="font-display pointer-events-auto text-lg tracking-wide text-foreground/70 sm:text-3xl">
               Mo Saathi
-            </span>
-            <span className="font-hand pointer-events-none hidden text-sm text-foreground/40 sm:inline">
-              for Odisha students
             </span>
           </header>
 

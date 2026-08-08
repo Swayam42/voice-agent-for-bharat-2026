@@ -169,7 +169,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
 
       {/* Ready-state mic error (before session mounts) */}
       {screen === 'ready' && micDenied && (
-        <div className="absolute inset-x-4 bottom-8 z-40 sm:inset-x-auto sm:bottom-12 sm:w-full sm:max-w-md">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm">
           <MicPermissionBanner
             open
             onDismiss={() => setMicDenied(false)}
