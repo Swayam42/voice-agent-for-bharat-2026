@@ -1,15 +1,29 @@
-import { Public_Sans } from 'next/font/google';
+import { Caveat, Kalam, Noto_Sans_Oriya } from 'next/font/google';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { ThemeProvider } from '@/components/app/theme-provider';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { cn } from '@/lib/shadcn/utils';
 import { getAppConfig, getStyles } from '@/lib/utils';
+import { GlobalClickSound } from '@/components/app/global-click-sound';
 import '@/styles/globals.css';
 
-const publicSans = Public_Sans({
-  variable: '--font-public-sans',
+const caveat = Caveat({
+  variable: '--font-display',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
+
+const kalam = Kalam({
+  variable: '--font-hand',
+  subsets: ['latin'],
+  weight: ['300', '400', '700'],
+});
+
+const notoOriya = Noto_Sans_Oriya({
+  variable: '--font-odia',
+  subsets: ['oriya'],
+  weight: ['400', '700'],
 });
 
 const commitMono = localFont({
@@ -47,62 +61,50 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   const hdrs = await headers();
   const appConfig = await getAppConfig(hdrs);
   const styles = getStyles(appConfig);
-  const { pageTitle, pageDescription, companyName, logo, logoDark } = appConfig;
+  const { pageTitle, pageDescription } = appConfig;
 
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={cn(
-        publicSans.variable,
+        caveat.variable,
+        kalam.variable,
+        notoOriya.variable,
         commitMono.variable,
-        'scroll-smooth font-sans antialiased'
+        'scroll-smooth antialiased'
       )}
     >
       <head>
         {styles && <style>{styles}</style>}
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#1c1c1c" media="(prefers-color-scheme: dark)" />
       </head>
-      <body className="overflow-x-hidden">
+      <body className="overflow-x-hidden font-sans">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
-          <header className="fixed top-0 left-0 z-50 hidden w-full flex-row justify-between p-6 md:flex">
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://livekit.io"
-              className="scale-100 transition-transform duration-300 hover:scale-110"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logo} alt={`${companyName} Logo`} className="block size-6 dark:hidden" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoDark ?? logo}
-                alt={`${companyName} Logo`}
-                className="hidden size-6 dark:block"
-              />
-            </a>
-            <span className="text-foreground font-mono text-xs font-bold tracking-wider uppercase">
-              Built with{' '}
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                href="https://docs.livekit.io/agents"
-                className="underline underline-offset-4"
-              >
-                LiveKit Agents
-              </a>
+          {/* Minimal top brand — phone friendly, no clutter */}
+          <header className="pointer-events-none fixed top-0 left-0 z-50 flex w-full items-center justify-between px-5 pt-4 sm:px-6 sm:pt-5">
+            <span className="font-display pointer-events-auto text-lg tracking-wide text-foreground/70 sm:text-xl">
+              Mo Saathi
+            </span>
+            <span className="font-hand pointer-events-none hidden text-sm text-foreground/40 sm:inline">
+              for Odisha students
             </span>
           </header>
 
+          <GlobalClickSound />
           {children}
-          <div className="group fixed bottom-0 left-1/2 z-50 mb-2 -translate-x-1/2">
-            <ThemeToggle className="translate-y-20 transition-transform delay-150 duration-300 group-hover:translate-y-0" />
+
+          <div className="group fixed right-3 bottom-3 z-50 sm:right-5 sm:bottom-5">
+            <ThemeToggle className="translate-y-16 opacity-40 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 focus-within:translate-y-0 focus-within:opacity-100" />
           </div>
         </ThemeProvider>
       </body>

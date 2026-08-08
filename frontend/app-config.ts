@@ -34,28 +34,28 @@ export interface AppConfig {
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
   companyName: 'Mo Saathi',
-  pageTitle: 'Mo Saathi - AI Learning Companion',
-  pageDescription: 'An AI-powered voice learning companion for students, powered by Murf Falcon and LiveKit.',
+  pageTitle: 'Mo Saathi — Your learning friend',
+  pageDescription:
+    'A calm voice learning companion for students in Odisha. Ask questions, learn simply, stay curious.',
 
+  // Keep the UI focused on voice — no camera or screen share clutter
   supportsChatInput: true,
-  supportsVideoInput: true,
-  supportsScreenShare: true,
+  supportsVideoInput: false,
+  supportsScreenShare: false,
   isPreConnectBufferEnabled: true,
 
   logo: '/murf-logo.svg',
-  accent: '#000000',
+  accent: '#111111',
   logoDark: '/murf-logo-dark.svg',
-  accentDark: '#ffffff',
-  startButtonText: 'Start Learning',
+  accentDark: '#f5f5f5',
+  startButtonText: 'Start learning',
 
-  // optional: audio visualization configuration
-  audioVisualizerType: 'aura',
-  audioVisualizerColor: '#FF6B6B', // Warm vibrant learning color
-  audioVisualizerColorDark: '#4ECDC4', // Cool vibrant dark mode color
+  // Minimal black & white bars
+  audioVisualizerType: 'bar',
+  audioVisualizerColor: '#111111',
+  audioVisualizerColorDark: '#f5f5f5',
+  audioVisualizerBarCount: 5,
 
-  // agent dispatch configuration
   agentName: process.env.AGENT_NAME ?? undefined,
-
-  // LiveKit Cloud Sandbox configuration
   sandboxId: undefined,
 };

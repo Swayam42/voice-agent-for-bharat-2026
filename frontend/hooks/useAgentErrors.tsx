@@ -16,8 +16,10 @@ function toastAlert(toast: ToastProps) {
     (id) => (
       <Alert onClick={() => sonnerToast.dismiss(id)} className="bg-accent w-full md:w-[364px]">
         <WarningIcon weight="bold" />
-        <AlertTitle>{title}</AlertTitle>
-        {description && <AlertDescription>{description}</AlertDescription>}
+        <AlertTitle className="font-display text-lg">{title}</AlertTitle>
+        {description && (
+          <AlertDescription className="font-hand text-base">{description}</AlertDescription>
+        )}
       </Alert>
     ),
     { duration: 10_000 }
@@ -33,7 +35,7 @@ export function useAgentErrors() {
       const reasons = agent.failureReasons;
 
       toastAlert({
-        title: 'Session ended',
+        title: 'Could not reach Saathi',
         description: (
           <>
             {reasons.length > 1 && (
@@ -44,16 +46,8 @@ export function useAgentErrors() {
               </ul>
             )}
             {reasons.length === 1 && <p className="w-full">{reasons[0]}</p>}
-            <p className="w-full">
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                href="https://docs.livekit.io/agents/start/voice-ai/"
-                className="whitespace-nowrap underline"
-              >
-                See quickstart guide
-              </a>
-              .
+            <p className="mt-1 w-full text-foreground/70">
+              Please end the call and try starting again in a moment.
             </p>
           </>
         ),
