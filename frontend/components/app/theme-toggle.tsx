@@ -14,29 +14,25 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   return (
     <div
       className={cn(
-        'text-foreground bg-background flex w-full flex-row justify-end divide-x overflow-hidden rounded-full border',
+        'text-foreground bg-background flex w-auto flex-row justify-end divide-x overflow-hidden rounded-full border border-foreground/15',
         className
       )}
     >
       <span className="sr-only">Color scheme toggle</span>
-      <button type="button" onClick={() => setTheme('dark')} className="cursor-pointer p-1 pl-1.5">
+      <button type="button" onClick={() => setTheme('dark')} className="cursor-pointer p-2 pl-2.5">
         <span className="sr-only">Enable dark color scheme</span>
         <MoonIcon
           suppressHydrationWarning
-          size={16}
+          size={14}
           weight="bold"
           className={cn(theme !== 'dark' && 'opacity-25')}
         />
       </button>
-      <button
-        type="button"
-        onClick={() => setTheme('light')}
-        className="cursor-pointer px-1.5 py-1"
-      >
+      <button type="button" onClick={() => setTheme('light')} className="cursor-pointer px-2.5 py-2">
         <span className="sr-only">Enable light color scheme</span>
         <SunIcon
           suppressHydrationWarning
-          size={16}
+          size={14}
           weight="bold"
           className={cn(theme !== 'light' && 'opacity-25')}
         />
@@ -44,12 +40,12 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       <button
         type="button"
         onClick={() => setTheme('system')}
-        className="cursor-pointer p-1 pr-1.5"
+        className="cursor-pointer p-2 pr-2.5"
       >
         <span className="sr-only">Enable system color scheme</span>
         <MonitorIcon
           suppressHydrationWarning
-          size={16}
+          size={14}
           weight="bold"
           className={cn(theme !== 'system' && 'opacity-25')}
         />

@@ -41,10 +41,13 @@ export function App({ appConfig }: AppProps) {
   return (
     <AgentSessionProvider session={session}>
       <AppSetup />
-      <main className="grid h-svh grid-cols-1 place-content-center">
+      <main className="relative h-svh w-full overflow-hidden">
         <ViewController appConfig={appConfig} />
       </main>
-      <StartAudioButton label="Start Audio" />
+      <StartAudioButton
+        label="Tap to enable sound"
+        className="fixed bottom-24 left-1/2 z-50 h-12 -translate-x-1/2 rounded-full px-6 font-hand text-base shadow-md"
+      />
       <Toaster
         icons={{
           warning: <WarningIcon weight="bold" />,
