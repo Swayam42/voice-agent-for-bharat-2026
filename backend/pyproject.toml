@@ -15,6 +15,10 @@ dependencies = [
     "livekit-plugins-openai~=1.4",
     "python-dotenv",
     "sarvamai",
+    "aiosqlite>=0.20.0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0.0",
+    "pypdf>=4.0.0",
 ]
 
 [dependency-groups]

@@ -30,12 +30,12 @@ export async function POST(req: Request) {
       throw new Error('LIVEKIT_API_SECRET is not defined');
     }
 
-    // Parse room config from request body (if provided).
-    const body = await req.json().catch(() => ({}));
+    const { searchParams } = new URL(req.url);
+    const userIdQuery = searchParams.get('userId');
+
+    // Parse room config from query (if provided).
     let roomConfig: RoomConfiguration | undefined;
-    if (body?.room_config) {
-      roomConfig = RoomConfiguration.fromJson(body.room_config, { ignoreUnknownFields: true });
-    } else if (AGENT_NAME) {
+    if (AGENT_NAME) {
       // When AGENT_NAME is set, configure explicit agent dispatch so the named
       // agent worker picks up the job when a user joins the room.
       roomConfig = RoomConfiguration.fromJson(
@@ -43,10 +43,18 @@ export async function POST(req: Request) {
         { ignoreUnknownFields: true }
       );
     }
-      
-    // Generate participant token
+
+    // -----------------------------------------------------------------------
+    // Stable identity: the client sends a persistent userId stored in
+    // localStorage via query parameters. This allows the agent to recognise
+    // returning students across multiple calls.
+    // -----------------------------------------------------------------------
     const participantName = 'user';
-    const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+    const participantIdentity: string =
+      typeof userIdQuery === 'string' && userIdQuery.trim().length > 0
+        ? userIdQuery.trim()
+        : `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
     const participantToken = await createParticipantToken(

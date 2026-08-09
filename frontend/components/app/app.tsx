@@ -27,11 +27,27 @@ interface AppProps {
 }
 
 export function App({ appConfig }: AppProps) {
+  // ---------------------------------------------------------------------------
+  // Stable student identity — persisted in localStorage across sessions.
+  // The backend uses this to recognise returning students and load their profile.
+  // ---------------------------------------------------------------------------
+  const userId = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    const STORAGE_KEY = 'mo_saathi_user_id';
+    let id = localStorage.getItem(STORAGE_KEY);
+    if (!id) {
+      // Generate a new UUID-like ID for this browser
+      id = 'ms_' + crypto.randomUUID().replace(/-/g, '');
+      localStorage.setItem(STORAGE_KEY, id);
+    }
+    return id;
+  }, []);
+
   const tokenSource = useMemo(() => {
     return typeof process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT === 'string'
       ? getSandboxTokenSource(appConfig)
-      : TokenSource.endpoint('/api/token');
-  }, [appConfig]);
+      : TokenSource.endpoint(`/api/token?userId=${userId}`);
+  }, [appConfig, userId]);
 
   const session = useSession(
     tokenSource,
