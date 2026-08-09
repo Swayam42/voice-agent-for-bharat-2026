@@ -1,0 +1,58 @@
+SCIENCE KNOWLEDGE BASE — CLASS 9 & 10 (Odisha Board)
+=====================================================
+This file contains key science concepts for Mo Saathi's RAG pipeline.
+It covers topics from the Odisha Board Class 9 and Class 10 science curriculum.
+
+=== BIOLOGY ===
+
+PHOTOSYNTHESIS
+Photosynthesis is the process by which green plants make their own food using sunlight, carbon dioxide, and water. The reaction takes place in the chloroplast, which contains a green pigment called chlorophyll. The overall equation is: 6CO2 + 6H2O + light energy → C6H12O6 (glucose) + 6O2. The light reactions happen in the thylakoid membrane, where light splits water molecules (photolysis) and produces ATP and NADPH. The dark reactions (Calvin Cycle) happen in the stroma and use ATP and NADPH to fix CO2 into glucose. Factors affecting photosynthesis include light intensity, CO2 concentration, temperature, and water availability.
+
+CELL BIOLOGY
+The cell is the basic structural and functional unit of life. Prokaryotic cells (bacteria) lack a membrane-bound nucleus. Eukaryotic cells (plants, animals, fungi) have a nucleus. Key organelles: nucleus (contains DNA, controls cell activities), mitochondria (produces ATP via cellular respiration, called the powerhouse of the cell), ribosomes (synthesise proteins), endoplasmic reticulum (smooth ER makes lipids; rough ER makes proteins), Golgi apparatus (packages and ships proteins), chloroplast (only in plant cells, site of photosynthesis), vacuole (storage, large central vacuole in plant cells), cell wall (only in plants and fungi, made of cellulose).
+
+HUMAN DIGESTIVE SYSTEM
+Digestion begins in the mouth where salivary amylase breaks starch into maltose. Food then passes through the oesophagus to the stomach, where pepsin (activated by HCl) digests proteins. The small intestine is the main site of digestion and absorption. The liver produces bile (stored in gall bladder) which emulsifies fats. The pancreas secretes pancreatic juice containing amylase, lipase, and trypsin. Villi and microvilli in the small intestine increase surface area for absorption. The large intestine absorbs water and forms faeces.
+
+HUMAN RESPIRATORY SYSTEM
+Air enters through the nose (filtered, warmed, moistened), passes through the pharynx, larynx, trachea, bronchi, and bronchioles, and reaches the alveoli. Gas exchange occurs in the alveoli by diffusion. Oxygen diffuses into blood capillaries; CO2 diffuses out. Breathing rate increases during exercise because more CO2 is produced, which lowers blood pH and signals the brain to increase breathing rate. Haemoglobin in red blood cells carries oxygen.
+
+HUMAN CIRCULATORY SYSTEM
+The heart has four chambers: two atria (upper) and two ventricles (lower). The right side pumps deoxygenated blood to the lungs (pulmonary circulation). The left side pumps oxygenated blood to the body (systemic circulation). Blood consists of plasma, red blood cells (carry O2), white blood cells (immunity), and platelets (clotting). Arteries carry blood away from the heart (thick walls, high pressure). Veins carry blood to the heart (thin walls, have valves). Capillaries are the site of exchange between blood and tissues.
+
+NERVOUS SYSTEM
+The nervous system has two parts: Central Nervous System (brain + spinal cord) and Peripheral Nervous System. Neurons are the functional units — they have a cell body, dendrites (receive signals), and an axon (sends signals). A reflex arc is the path of a reflex action: receptor → sensory neuron → spinal cord → motor neuron → effector. The brain has three main parts: cerebrum (thinking, voluntary movement), cerebellum (balance, coordination), medulla oblongata (controls involuntary actions like heartbeat and breathing).
+
+=== CHEMISTRY ===
+
+ACIDS, BASES AND SALTS
+Acids donate protons (H+ ions) in water. Bases accept protons or donate OH- ions. The pH scale measures acidity: 0-6 is acidic, 7 is neutral, 8-14 is basic. Indicators: litmus turns red in acid and blue in base. Methyl orange turns red in acid and yellow in base. Phenolphthalein is colourless in acid and pink in base. Universal indicator shows a range of colours. Neutralisation: acid + base → salt + water. Baking soda (sodium bicarbonate, NaHCO3) is a weak base. Washing soda (sodium carbonate, Na2CO3) is a strong base used in cleaning. Common acids: HCl (hydrochloric), H2SO4 (sulphuric), HNO3 (nitric), CH3COOH (acetic/vinegar). Common bases: NaOH (caustic soda), Ca(OH)2 (slaked lime), Mg(OH)2 (milk of magnesia).
+
+METALS AND NON-METALS
+Metals are lustrous, malleable, ductile, good conductors of heat and electricity. Non-metals are non-lustrous, brittle, poor conductors (except graphite). Reactivity series (most reactive to least): K, Na, Ca, Mg, Al, Zn, Fe, Pb, (H), Cu, Ag, Au, Pt. Metals above hydrogen in reactivity series displace hydrogen from dilute acids. Rusting of iron: 4Fe + 3O2 + 2H2O → 2Fe2O3.3H2O. Rusting is prevented by painting, galvanising (zinc coating), or alloying (stainless steel). Alloys: brass (Cu+Zn), bronze (Cu+Sn), stainless steel (Fe+C+Cr+Ni), duralumin (Al+Cu+Mn+Mg).
+
+CARBON AND ITS COMPOUNDS
+Carbon forms a huge variety of compounds because it can form 4 covalent bonds (tetravalency) and bond with itself in long chains (catenation). Hydrocarbons: alkanes (single bonds, CnH2n+2, e.g., methane CH4, ethane C2H6), alkenes (one double bond, CnH2n, e.g., ethene C2H4), alkynes (one triple bond, CnH2n-2, e.g., ethyne C2H2). Functional groups determine properties: -OH (alcohol), -COOH (carboxylic acid), -CHO (aldehyde), -CO- (ketone). Ethanol (C2H5OH) is the alcohol in drinks, used as fuel and solvent. Ethanoic acid (CH3COOH) is acetic acid (vinegar). Soaps are sodium or potassium salts of fatty acids. The hydrophilic end of soap attracts water; the hydrophobic end attracts grease, forming micelles that clean the surface.
+
+PERIODIC TABLE
+Mendeleev arranged elements by increasing atomic mass. Modern periodic table arranges by atomic number (Moseley). There are 18 groups (vertical columns) and 7 periods (horizontal rows). Group 1 = alkali metals (very reactive). Group 17 = halogens. Group 18 = noble gases (inert, full valence shell). Elements in the same group have same number of valence electrons and similar properties. Atomic radius decreases across a period (left to right) and increases down a group. Electronegativity increases left to right, decreases top to bottom.
+
+=== PHYSICS ===
+
+MOTION AND FORCE
+Distance is the total path length; displacement is shortest path from start to end (vector). Speed = distance/time; velocity = displacement/time (vector). Acceleration = change in velocity/time. Newton's Laws: 1st — an object stays at rest or in uniform motion unless acted on by a net force. 2nd — F = ma. 3rd — every action has an equal and opposite reaction. Momentum = mass × velocity. Law of conservation of momentum: in a closed system, total momentum before = total momentum after a collision. Gravitational acceleration (g) = 9.8 m/s² near Earth's surface.
+
+WORK, ENERGY AND POWER
+Work = Force × displacement × cos(θ). Work is zero if force is perpendicular to displacement. Kinetic energy = ½mv². Potential energy = mgh. Law of conservation of energy: energy cannot be created or destroyed, only converted. Power = Work/time, measured in watts (W). 1 horsepower = 746 W.
+
+LIGHT — REFLECTION AND REFRACTION
+Law of reflection: angle of incidence = angle of reflection. Concave mirrors converge light (used in headlights, telescopes). Convex mirrors diverge light, give smaller but erect image (used in car rear-view mirrors). Mirror formula: 1/f = 1/v + 1/u. Refraction: light bends when passing between media of different optical densities. Snell's law: n1 sinθ1 = n2 sinθ2. Refractive index n = speed of light in vacuum / speed of light in medium. Convex lenses converge light (used in magnifying glasses, cameras). Concave lenses diverge light (used for myopia correction). Lens formula: 1/f = 1/v - 1/u. Power of lens = 1/f (in metres), unit is dioptre (D).
+
+ELECTRICITY
+Ohm's Law: V = IR (Voltage = Current × Resistance). Resistance in series: R_total = R1 + R2 + R3. Resistance in parallel: 1/R_total = 1/R1 + 1/R2 + 1/R3. Electric power P = VI = I²R = V²/R. Energy = Power × time (1 kWh = 1 unit of electricity). Heating effect of current (Joule heating): H = I²Rt. Magnetic effect of current: a current-carrying conductor produces a magnetic field (Oersted's discovery). Fleming's Left Hand Rule: for a current-carrying conductor in a magnetic field, thumb = force, index finger = field, middle finger = current.
+
+SOUND
+Sound is a mechanical longitudinal wave — it needs a medium to travel. Speed of sound in air ≈ 344 m/s at room temperature; faster in solids and liquids than in air. Frequency is the number of oscillations per second (Hz). Audible range for humans: 20 Hz to 20,000 Hz. Ultrasound > 20,000 Hz (used in SONAR, medical imaging). Echo: reflection of sound. Minimum distance for echo = speed of sound × 0.1 / 2 = 17.2 m. Reverberation is the persistence of sound in large enclosed spaces.
+
+NATURAL RESOURCES AND ENVIRONMENT
+The atmosphere has 78% nitrogen, 21% oxygen, 0.04% CO2, and other gases. The ozone layer (O3) in the stratosphere absorbs harmful UV radiation. Ozone depletion is caused by CFCs (chlorofluorocarbons). Greenhouse gases (CO2, methane, water vapour) trap heat — excess causes global warming. The water cycle (hydrological cycle): evaporation → condensation → precipitation → runoff. Biogeochemical cycles: carbon cycle, nitrogen cycle, water cycle. Nitrogen fixation: bacteria (Rhizobium) convert N2 to ammonia, which plants can use.
