@@ -46,7 +46,7 @@ export function useAgentErrors() {
               </ul>
             )}
             {reasons.length === 1 && <p className="w-full">{reasons[0]}</p>}
-            <p className="mt-1 w-full text-foreground/70">
+            <p className="text-foreground/70 mt-1 w-full">
               Please end the call and try starting again in a moment.
             </p>
           </>

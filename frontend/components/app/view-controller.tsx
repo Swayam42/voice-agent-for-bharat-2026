@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { ConnectionState, MediaDeviceFailure } from 'livekit-client';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSessionContext } from '@livekit/components-react';
-import { useTheme } from 'next-themes';
 import type { AppConfig } from '@/app-config';
 import { ConnectingView } from '@/components/app/connecting-view';
 import { EndedView } from '@/components/app/ended-view';
@@ -79,45 +79,59 @@ export function ViewController({ appConfig }: ViewControllerProps) {
     };
   }, [room]);
 
-  const handleStart = useCallback(async () => {
-    setStartError(null);
-    setMicDenied(false);
-    setScreen('connecting');
+  const handleStart = useCallback(
+    async (isNewSession?: boolean) => {
+      if (isNewSession) {
+        // User explicitly wants a new session, so clear the old one and reload.
+        // app.tsx will generate a new one on mount.
+        localStorage.removeItem('mo_saathi_user_id');
+        window.location.reload();
+        return;
+      }
 
-    try {
-      // Probe mic permission early so we can show a clear message
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((t) => t.stop());
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          if (/Permission|NotAllowed|Denied/i.test(message) || (err as { name?: string })?.name === 'NotAllowedError') {
-            setMicDenied(true);
-            setScreen('ready');
-            return;
+      setStartError(null);
+      setMicDenied(false);
+      setScreen('connecting');
+
+      try {
+        // Probe mic permission early so we can show a clear message
+        if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach((t) => t.stop());
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (
+              /Permission|NotAllowed|Denied/i.test(message) ||
+              (err as { name?: string })?.name === 'NotAllowedError'
+            ) {
+              setMicDenied(true);
+              setScreen('ready');
+              return;
+            }
           }
         }
-      }
 
-      await start({
-        tracks: {
-          microphone: { enabled: true },
-          camera: { enabled: false },
-          screenShare: { enabled: false },
-        },
-      });
-    } catch (err) {
-      console.error('Failed to start session', err);
-      const message = err instanceof Error ? err.message : 'Could not start the call';
-      if (/Permission|NotAllowed|Denied|microphone/i.test(message)) {
-        setMicDenied(true);
-      } else {
-        setStartError('Something went wrong. Please check your connection and try again.');
+        await start({
+          tracks: {
+            microphone: { enabled: true },
+            camera: { enabled: false },
+            screenShare: { enabled: false },
+          },
+        });
+      } catch (err) {
+        console.error('Failed to start session', err);
+        const message = err instanceof Error ? err.message : 'Could not start the call';
+        if (/Permission|NotAllowed|Denied|microphone/i.test(message)) {
+          setMicDenied(true);
+        } else {
+          setStartError('Something went wrong. Please check your connection and try again.');
+        }
+        setScreen('ready');
       }
-      setScreen('ready');
-    }
-  }, [start]);
+    },
+    [start]
+  );
 
   const handleEndCall = useCallback(() => {
     setScreen('ended');
@@ -169,18 +183,14 @@ export function ViewController({ appConfig }: ViewControllerProps) {
 
       {/* Ready-state mic error (before session mounts) */}
       {screen === 'ready' && micDenied && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm">
-          <MicPermissionBanner
-            open
-            onDismiss={() => setMicDenied(false)}
-            onRetry={handleStart}
-          />
+        <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
+          <MicPermissionBanner open onDismiss={() => setMicDenied(false)} onRetry={handleStart} />
         </div>
       )}
 
       {screen === 'ready' && startError && !micDenied && (
-        <div className="absolute inset-x-4 bottom-8 z-40 rounded-2xl border border-foreground/15 bg-background p-4 text-center sm:inset-x-auto sm:bottom-12 sm:w-full sm:max-w-md">
-          <p className="font-hand text-base text-foreground">{startError}</p>
+        <div className="border-foreground/15 bg-background absolute inset-x-4 bottom-8 z-40 rounded-2xl border p-4 text-center sm:inset-x-auto sm:bottom-12 sm:w-full sm:max-w-md">
+          <p className="font-hand text-foreground text-base">{startError}</p>
         </div>
       )}
     </div>

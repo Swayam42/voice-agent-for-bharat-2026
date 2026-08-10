@@ -22,23 +22,18 @@ export function MicPermissionBanner({
   return (
     <div
       role="alert"
-      className={cn(
-        'mx-auto w-full max-w-md pencil-box bg-background p-5 shadow-sm',
-        className
-      )}
+      className={cn('pencil-box bg-background mx-auto w-full max-w-md p-5 shadow-sm', className)}
     >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-foreground/15 bg-secondary">
-          <MicOffIcon className="size-5 text-foreground" strokeWidth={1.75} />
+        <div className="border-foreground/15 bg-secondary mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border">
+          <MicOffIcon className="text-foreground size-5" strokeWidth={1.75} />
         </div>
         <div className="min-w-0 flex-1 space-y-2 text-left">
-          <h2 className="font-display text-xl leading-tight text-foreground">
-            Microphone blocked
-          </h2>
-          <p className="font-hand text-base leading-snug text-muted-foreground">
+          <h2 className="font-display text-foreground text-xl leading-tight">Microphone blocked</h2>
+          <p className="font-hand text-muted-foreground text-base leading-snug">
             Mo Saathi needs your mic to hear you. Please allow microphone access, then try again.
           </p>
-          <ol className="font-hand space-y-1 pl-4 text-sm leading-snug text-foreground/70 list-decimal">
+          <ol className="font-hand text-foreground/70 list-decimal space-y-1 pl-4 text-sm leading-snug">
             <li>Tap the lock / info icon in your browser address bar</li>
             <li>Set Microphone to Allow</li>
             <li>Reload the page and start learning again</li>
@@ -47,7 +42,7 @@ export function MicPermissionBanner({
             {onRetry && (
               <Button
                 onClick={onRetry}
-                className="pencil-box h-11 min-w-[7.5rem] bg-foreground text-black hover:bg-foreground/90 px-5 font-hand text-base"
+                className="pencil-box bg-foreground hover:bg-foreground/90 font-hand h-11 min-w-[7.5rem] px-5 text-base text-black"
               >
                 Try again
               </Button>
@@ -56,7 +51,7 @@ export function MicPermissionBanner({
               <Button
                 variant="outline"
                 onClick={onDismiss}
-                className="pencil-box h-11 border-2 border-foreground hover:bg-accent px-5 font-hand text-base"
+                className="pencil-box border-foreground hover:bg-accent font-hand h-11 border-2 px-5 text-base"
               >
                 Dismiss
               </Button>
