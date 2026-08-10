@@ -11,12 +11,12 @@ export function GlobalClickSound() {
 
     // Pre-fetch and decode the audio file into memory immediately on load
     fetch('/click.mp3')
-      .then(response => response.arrayBuffer())
-      .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-      .then(decodedAudio => {
+      .then((response) => response.arrayBuffer())
+      .then((arrayBuffer) => audioCtx.decodeAudioData(arrayBuffer))
+      .then((decodedAudio) => {
         clickBuffer = decodedAudio;
       })
-      .catch(err => console.warn('Failed to load click sound', err));
+      .catch((err) => console.warn('Failed to load click sound', err));
 
     const playPencilTap = () => {
       if (!clickBuffer) return; // Wait until loaded
@@ -47,9 +47,9 @@ export function GlobalClickSound() {
       const target = e.target as HTMLElement;
       // Play sound when clicking interactive pencil elements
       if (
-        target.closest('button') || 
-        target.closest('a') || 
-        target.closest('.pencil-box') || 
+        target.closest('button') ||
+        target.closest('a') ||
+        target.closest('.pencil-box') ||
         target.closest('.pencil-circle') ||
         target.closest('[role="button"]')
       ) {

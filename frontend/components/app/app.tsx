@@ -62,7 +62,7 @@ export function App({ appConfig }: AppProps) {
       </main>
       <StartAudioButton
         label="Tap to enable sound"
-        className="fixed bottom-24 left-1/2 z-50 h-12 -translate-x-1/2 rounded-full px-6 font-hand text-base shadow-md"
+        className="font-hand fixed bottom-24 left-1/2 z-50 h-12 -translate-x-1/2 rounded-full px-6 text-base shadow-md"
       />
       <Toaster
         icons={{

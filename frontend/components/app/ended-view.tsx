@@ -10,11 +10,11 @@ export function EndedView({ onRestart, ref }: React.ComponentProps<'div'> & Ende
   return (
     <div ref={ref} className="flex w-full justify-center px-5">
       <section className="flex w-full max-w-sm flex-col items-center text-center">
-        <p className="font-odia mt-6 text-sm text-foreground/50">କଲ୍ ଶେଷ</p>
-        <h1 className="font-display mt-1 text-4xl leading-none tracking-wide text-foreground sm:text-5xl">
+        <p className="font-odia text-foreground/50 mt-6 text-sm">କଲ୍ ଶେଷ</p>
+        <h1 className="font-display text-foreground mt-1 text-4xl leading-none tracking-wide sm:text-5xl">
           Call ended
         </h1>
-        <p className="font-hand mt-3 max-w-[16rem] text-lg leading-snug text-muted-foreground">
+        <p className="font-hand text-muted-foreground mt-3 max-w-[16rem] text-lg leading-snug">
           Nice work. Come back anytime you want to learn something new.
         </p>
 
@@ -23,7 +23,7 @@ export function EndedView({ onRestart, ref }: React.ComponentProps<'div'> & Ende
             size="lg"
             variant="outline"
             onClick={onRestart}
-            className="pencil-box h-14 w-full font-hand text-xl tracking-wide shadow-none"
+            className="pencil-box font-hand h-14 w-full text-xl tracking-wide shadow-none"
           >
             Start again
           </Button>
@@ -31,7 +31,7 @@ export function EndedView({ onRestart, ref }: React.ComponentProps<'div'> & Ende
             size="lg"
             variant="outline"
             onClick={() => window.location.reload()}
-            className="pencil-box h-14 w-full border-foreground/30 font-hand text-xl tracking-wide shadow-none hover:bg-accent"
+            className="pencil-box border-foreground/30 font-hand hover:bg-accent h-14 w-full text-xl tracking-wide shadow-none"
           >
             Home
           </Button>

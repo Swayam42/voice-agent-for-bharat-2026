@@ -1,11 +1,11 @@
 import { Caveat, Kalam, Noto_Sans_Oriya } from 'next/font/google';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
+import { GlobalClickSound } from '@/components/app/global-click-sound';
 import { ThemeProvider } from '@/components/app/theme-provider';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { cn } from '@/lib/shadcn/utils';
 import { getAppConfig, getStyles } from '@/lib/utils';
-import { GlobalClickSound } from '@/components/app/global-click-sound';
 import '@/styles/globals.css';
 
 const caveat = Caveat({
@@ -92,7 +92,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         >
           {/* Minimal top brand — phone friendly, no clutter */}
           <header className="pointer-events-none fixed top-0 left-0 z-50 flex w-full items-center justify-between px-5 pt-4 sm:px-6 sm:pt-5">
-            <span className="font-display pointer-events-auto text-lg tracking-wide text-foreground/70 sm:text-3xl">
+            <span className="font-display text-foreground/70 pointer-events-auto text-lg tracking-wide sm:text-3xl">
               Mo Saathi
             </span>
           </header>

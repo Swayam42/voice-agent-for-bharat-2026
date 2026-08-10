@@ -14,7 +14,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   return (
     <div
       className={cn(
-        'text-foreground bg-background flex w-auto flex-row justify-end divide-x overflow-hidden rounded-full border border-foreground/15',
+        'text-foreground bg-background border-foreground/15 flex w-auto flex-row justify-end divide-x overflow-hidden rounded-full border',
         className
       )}
     >
@@ -28,7 +28,11 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
           className={cn(theme !== 'dark' && 'opacity-25')}
         />
       </button>
-      <button type="button" onClick={() => setTheme('light')} className="cursor-pointer px-2.5 py-2">
+      <button
+        type="button"
+        onClick={() => setTheme('light')}
+        className="cursor-pointer px-2.5 py-2"
+      >
         <span className="sr-only">Enable light color scheme</span>
         <SunIcon
           suppressHydrationWarning

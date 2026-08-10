@@ -40,6 +40,7 @@ from livekit.agents import (
 from livekit.plugins import murf, noise_cancellation, openai, silero
 
 from database import delete_user, get_user, init_db, save_user
+from question_bank import get_random_question
 from rag import load_knowledge_base, search
 from sarvam_stt import SarvamSTT
 
@@ -60,10 +61,11 @@ DO NOT repeat any greeting, do NOT say "Namaskar", "Jay Jagannath", or introduce
 Dive straight into the conversation from where the student left off (if returning) or wait for their first question (if new).
 
 # MEMORY & TOOLS
-You have access to three tools:
+You have access to four tools:
 1. lookup_student_profile — Call this at the start of EVERY session to recall facts about this student.
 2. save_student_profile — Call this when you learn something new about the student (name, class, topics covered, mistakes). ALWAYS ask the student's permission before saving. Example: "Mu tumar naam save kari deba ki?" (Shall I remember your name?). If they say no, do NOT call this tool.
 3. forget_me — Call this when the student explicitly asks to be forgotten. Confirm once before calling.
+4. get_next_exercise — Whenever a student asks to be tested, wants practice questions, a quiz, MCQs, or revision exercises (e.g. "test me", "give me a question", "practice kariba"), you MUST call this tool. NEVER invent questions yourself. If the tool returns a question, translate it into Odia naturally. If the tool fails to find a question, gracefully and playfully apologize, and redirect the student to what you DO know (e.g., Class 9 and 10 Maths and Science).
 
 # OBJECTIVES
 Your goal is not only to answer questions, but to make the student curious enough to ask the next question.
@@ -141,7 +143,7 @@ class Assistant(Agent):
             content=[
                 "Generate a highly natural, instantaneous 1-to-2 word conversational acknowledgment in pure Odia script based on the user's latest input.",
                 "Act like a friendly human listening. Do not answer the question directly. Keep it to 1-2 words only.",
-                "Use natural human sounds like 'ଆଚ୍ଛା...' (Acha...), 'ହଁ...' (Yeah...), 'ଦେଖିବା...' (Let's see...), 'ବୁଝିଲି...' (Understood...), or 'ଠିକ୍ ଅଛି...' (Alright...).",
+                "Use natural human sounds like 'ଆଚ୍ଛା...' (Acha), 'ହଁ...' (Yeah), 'ଦେଖିବା...' (Let's see), 'ବୁଝିଲି...' (Understood), or 'ଠିକ୍ ଅଛି...' (Alright).",
                 "Do NOT use robotic phrases.",
             ],
         )
@@ -286,6 +288,35 @@ class Assistant(Agent):
             logger.info(f"[Tool] forget_me: no profile found for '{self._user_id}'")
             return "You don't have a saved profile, so there is nothing to delete."
 
+    # -----------------------------------------------------------------------
+    # Tool 4: Get next exercise (practice questions)
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def get_next_exercise(
+        self,
+        context: RunContext,
+        subject: str,
+        class_level: str,
+        topic: str | None = None
+    ) -> str:
+        """
+        Fetch a practice question or quiz for the student.
+        Use this whenever the student asks to be tested, wants a question,
+        wants a quiz, or wants to practice.
+
+        Arguments:
+            subject      — e.g. "science", "maths", "history"
+            class_level  — e.g. "Class 9", "Class 10"
+            topic        — (optional) specific topic the student wants to practice
+        """
+        logger.info(f"[TOOL] get_next_exercise called subject={subject} class={class_level}")
+        result = get_random_question(subject, class_level, topic)
+        
+        if result:
+            return result["text"]
+        else:
+            return "TOOL_ERROR: No questions found for this topic. Naturally apologize and gently guide the student back to your main subjects (Class 9 and 10 Maths/Science)."
 
 # ---------------------------------------------------------------------------
 # Agent server
@@ -322,10 +353,7 @@ async def my_agent(ctx: JobContext):
     # which embeds it as the participant identity. We use it here.
     # -----------------------------------------------------------------------
 
-    participant = None
-    for p in ctx.room.remote_participants.values():
-        participant = p
-        break
+    participant = await ctx.wait_for_participant()
 
     user_id: str = (
         participant.identity
@@ -350,10 +378,6 @@ async def my_agent(ctx: JobContext):
                 f"ଜୟ ଜଗନ୍ନାଥ {student_name}! କେମିତି ଅଛ? "
                 f"ଗତଥର ଆମେ {last_topic_str} ବିଷୟରେ ପଢୁଥିଲେ। "
                 f"ଆଜି ସେଇଠୁ ଆରମ୍ଭ କରିବା ନା ନୂଆ କିଛି ଶିଖିବାକୁ ଇଚ୍ଛା ଅଛି?"
-            )
-        else:
-            greeting = (
-                f"ଜୟ ଜଗନ୍ନାଥ {student_name}! କେମିତି ଅଛ? ଆଜି ଆମେ କେଉଁ ବିଷୟରେ ପଢ଼ିବା?"
             )
         logger.info(f"Returning student: {student_name}")
     else:

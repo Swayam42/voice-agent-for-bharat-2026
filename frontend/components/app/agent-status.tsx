@@ -73,23 +73,23 @@ export function AgentStatus({ phase, className, compact = false }: AgentStatusPr
     >
       <div
         className={cn(
-          'pencil-box pointer-events-none inline-flex items-center gap-2 bg-background px-4 py-1.5',
+          'pencil-box bg-background pointer-events-none inline-flex items-center gap-2 px-4 py-1.5',
           phase === 'connecting' && 'border-foreground/25'
         )}
       >
         <StatusDot phase={phase} />
-        <span className="font-display text-lg leading-none tracking-wide text-foreground sm:text-xl">
+        <span className="font-display text-foreground text-lg leading-none tracking-wide sm:text-xl">
           {copy.title}
         </span>
       </div>
 
       {!compact && (
         <>
-          <p className="font-hand max-w-[18rem] text-base leading-snug text-muted-foreground sm:text-lg">
+          <p className="font-hand text-muted-foreground max-w-[18rem] text-base leading-snug sm:text-lg">
             {copy.subtitle}
           </p>
           {copy.odia && (
-            <p className="font-odia text-sm text-foreground/55 sm:text-base">{copy.odia}</p>
+            <p className="font-odia text-foreground/55 text-sm sm:text-base">{copy.odia}</p>
           )}
         </>
       )}
@@ -105,14 +105,14 @@ function StatusDot({ phase }: { phase: Exclude<UiPhase, 'ready'> }) {
       {isActive && (
         <span
           className={cn(
-            'absolute inset-0 rounded-full bg-foreground/40',
+            'bg-foreground/40 absolute inset-0 rounded-full',
             phase === 'speaking' ? 'animate-ping' : 'ink-breathe'
           )}
         />
       )}
       <span
         className={cn(
-          'relative size-2 rounded-full bg-foreground',
+          'bg-foreground relative size-2 rounded-full',
           phase === 'connecting' && 'ink-breathe',
           phase === 'ended' && 'opacity-40'
         )}

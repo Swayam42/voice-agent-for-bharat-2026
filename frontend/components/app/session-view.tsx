@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Track } from 'livekit-client';
+import { DownloadIcon, MicIcon, MicOffIcon, PhoneOffIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   type AgentState,
@@ -10,7 +11,6 @@ import {
   useSessionMessages,
   useVoiceAssistant,
 } from '@livekit/components-react';
-import { MicIcon, MicOffIcon, PhoneOffIcon, DownloadIcon } from 'lucide-react';
 import { AgentAudioVisualizerBar } from '@/components/agents-ui/agent-audio-visualizer-bar';
 import { AgentChatTranscript } from '@/components/agents-ui/agent-chat-transcript';
 import { AgentStatus, mapAgentStateToPhase } from '@/components/app/agent-status';
@@ -133,7 +133,7 @@ export function SessionView({
     >
       {/* Top status */}
       <div className="safe-top flex shrink-0 flex-col items-center px-4 pt-6 pb-2 sm:pt-8">
-        <p className="font-display mb-3 text-base text-foreground/45">Mo Saathi</p>
+        <p className="font-display text-foreground/45 mb-3 text-base">Mo Saathi</p>
         <AgentStatus phase={statusPhase} compact={chatOpen} />
       </div>
 
@@ -151,7 +151,7 @@ export function SessionView({
             >
               <div
                 className={cn(
-                  'relative flex size-[220px] items-center justify-center sm:size-[280px] transition-transform duration-500 ease-out',
+                  'relative flex size-[220px] items-center justify-center transition-transform duration-500 ease-out sm:size-[280px]',
                   statusPhase === 'speaking' && 'scale-75'
                 )}
                 style={{ color: audioVisualizerColor }}
@@ -163,14 +163,15 @@ export function SessionView({
                   audioTrack={audioTrack}
                   barCount={audioVisualizerBarCount}
                   className={cn(
-                    "gap-3 transition-all duration-500",
-                    statusPhase === 'speaking' ? "h-[80px] w-[140px] sm:h-[100px] sm:w-[160px]" : "h-[120px] w-[180px] sm:h-[140px] sm:w-[200px]"
+                    'gap-3 transition-all duration-500',
+                    statusPhase === 'speaking'
+                      ? 'h-[80px] w-[140px] sm:h-[100px] sm:w-[160px]'
+                      : 'h-[120px] w-[180px] sm:h-[140px] sm:w-[200px]'
                   )}
                 >
                   <span className="min-h-3 w-3 rounded-full bg-current/15 transition-colors duration-250 ease-linear data-[lk-highlighted=true]:bg-current sm:min-h-3.5 sm:w-3.5" />
                 </AgentAudioVisualizerBar>
               </div>
-
             </motion.div>
           )}
         </AnimatePresence>
@@ -190,38 +191,36 @@ export function SessionView({
       {/* Mic error */}
       {micPermissionDenied && (
         <div className="absolute inset-x-3 top-1/2 z-40 -translate-y-1/2 sm:inset-x-6">
-          <MicPermissionBanner
-            open
-            onDismiss={onDismissMicError}
-            onRetry={handleRetryMic}
-          />
+          <MicPermissionBanner open onDismiss={onDismissMicError} onRetry={handleRetryMic} />
         </div>
       )}
 
       {/* Export Prompt Modal */}
       <AnimatePresence>
         {showExportPrompt && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm px-4">
+          <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="pencil-box flex flex-col items-center p-6 sm:p-8 max-w-sm text-center bg-background"
+              className="pencil-box bg-background flex max-w-sm flex-col items-center p-6 text-center sm:p-8"
             >
-              <DownloadIcon className="size-8 mb-4 text-foreground/80" strokeWidth={1.5} />
-              <h3 className="font-hand text-xl font-bold mb-2">Export Conversation?</h3>
-              <p className="font-hand text-muted-foreground mb-6">Would you like to save your conversation as a .txt file before leaving?</p>
+              <DownloadIcon className="text-foreground/80 mb-4 size-8" strokeWidth={1.5} />
+              <h3 className="font-hand mb-2 text-xl font-bold">Export Conversation?</h3>
+              <p className="font-hand text-muted-foreground mb-6">
+                Would you like to save your conversation as a .txt file before leaving?
+              </p>
               <div className="flex w-full gap-3">
                 <Button
                   variant="outline"
-                  className="pencil-box flex-1 h-12 shadow-none font-hand text-lg bg-background"
+                  className="pencil-box font-hand bg-background h-12 flex-1 text-lg shadow-none"
                   onClick={() => handleExportChoice(false)}
                 >
                   No, thanks
                 </Button>
                 <Button
                   variant="outline"
-                  className="pencil-box flex-1 h-12 shadow-none font-hand text-lg text-black bg-white hover:bg-gray-100"
+                  className="pencil-box font-hand h-12 flex-1 bg-white text-lg text-black shadow-none hover:bg-gray-100"
                   onClick={() => handleExportChoice(true)}
                 >
                   Yes, save it
@@ -243,7 +242,7 @@ export function SessionView({
               disabled={microphoneToggle.pending}
               onClick={() => microphoneToggle.toggle()}
               aria-label={microphoneToggle.enabled ? 'Mute microphone' : 'Unmute microphone'}
-              className="size-16 p-0 shadow-none sm:size-[4.25rem] pencil-circle transition-all"
+              className="pencil-circle size-16 p-0 shadow-none transition-all sm:size-[4.25rem]"
             >
               {microphoneToggle.enabled ? (
                 <MicIcon className="size-6" strokeWidth={1.75} />
@@ -258,7 +257,7 @@ export function SessionView({
               variant="outline"
               onClick={handleEnd}
               aria-label="End call"
-              className="pencil-box h-16 min-w-[9.5rem] px-6 font-hand text-lg shadow-none sm:h-[4.25rem] sm:min-w-[11rem] sm:text-xl"
+              className="pencil-box font-hand h-16 min-w-[9.5rem] px-6 text-lg shadow-none sm:h-[4.25rem] sm:min-w-[11rem] sm:text-xl"
             >
               <PhoneOffIcon className="size-5" strokeWidth={1.75} />
               End call
@@ -269,7 +268,7 @@ export function SessionView({
             <button
               type="button"
               onClick={() => setChatOpen((v) => !v)}
-              className="font-hand text-base text-muted-foreground underline decoration-foreground/20 underline-offset-4 transition-colors hover:text-foreground"
+              className="font-hand text-muted-foreground decoration-foreground/20 hover:text-foreground text-base underline underline-offset-4 transition-colors"
             >
               {chatOpen ? 'Hide notes' : 'Show notes'}
             </button>
