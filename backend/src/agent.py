@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-agent.py — Mo Saathi Voice Agent (Day 4: Memory + RAG)
-=======================================================
+agent.py — Mo Saathi Voice Agent (Day 6: Outbound Reminder Calls)
+=================================================================
 Entry point for the LiveKit voice agent pipeline.
 
-New in Day 4
+New in Day 6
 ------------
-- Persistent SQLite memory (database.py) — agent remembers students across calls
-- RAG knowledge base (rag.py) — agent grounds answers in real curriculum docs
-- Personalised greetings — returning students are welcomed back by name
-- Three agent tools:
-    lookup_student_profile()   — read the student's stored facts
-    save_student_profile(...)  — write facts after asking consent
-    forget_me()                — permanently delete the student's data
-- Stable user identity from LiveKit participant identity (set by frontend)
+- Outbound study reminders (simulation mode — 100% free, no SIP account needed)
+- Three new tools: schedule_study_reminder, cancel_study_reminder, list_my_reminders
+- Background scheduler polling SQLite every 60s and triggering reminder calls
+- Outbound call detection via room metadata (is_outbound flag)
+- Personalised reminder opening script: "Hello {name}, this is Mo Saathi..."
 """
 
 import logging
@@ -42,6 +39,7 @@ from livekit.plugins import murf, noise_cancellation, openai, silero
 from database import delete_user, get_user, init_db, save_user
 from question_bank import get_random_question
 from rag import load_knowledge_base, search
+from reminders import cancel_reminder, init_reminders_table, list_reminders, save_reminder
 from sarvam_stt import SarvamSTT
 
 logger = logging.getLogger("agent")
@@ -114,6 +112,32 @@ Plain text only. No markdown. No bullet lists.
 Never speak in paragraphs. Prefer 8-15 word sentences.
 Pause naturally. Avoid reading like a textbook. Sound like a friendly teacher. Ask one question at a time."""
 
+# ---------------------------------------------------------------------------
+# Outbound Call System Prompt (short, scripted, consent-first)
+# ---------------------------------------------------------------------------
+
+OUTBOUND_CALL_SYSTEM_PROMPT = """# IDENTITY
+You are Mo Saathi, a friendly Odia learning companion making a scheduled reminder call.
+
+# TASK
+You placed this call because the student asked to be reminded to study.
+Your opening is strictly scripted — say it word for word:
+1. Introduce yourself.
+2. State why you are calling (the reminder subject).
+3. Offer to cancel future reminders if they wish.
+
+# SCRIPTED OPENER (say this at the start):
+"ନମସ୍କାର! ମୁଁ ମୋ ସାଥୀ। ଆପଣ ମୋତେ {subject} ପଢ଼ିବା ପାଇଁ ମନେ କରାଇ ଦେବାକୁ କହିଥିଲେ। ଯଦି ଆପଣ ଆଉ ଏହି ରିମାଇଣ୍ଡର ଚାହୁଁ ନାହାନ୍ତି, ଦୟାକରି ମୋତେ ବୋଲନ୍ତୁ।"
+
+# AFTER THE OPENER:
+- If the student wants to study now → help them with a question from the subject.
+- If the student says stop reminders → call the cancel_study_reminder tool.
+- Keep the call SHORT — under 3 minutes.
+- If no response in 30 seconds, say goodbye and end.
+
+# LANGUAGE
+Reply primarily in Odia script. Keep sentences under 15 words. Plain text only, no markdown."""
+
 
 # ---------------------------------------------------------------------------
 # Agent Class
@@ -127,8 +151,8 @@ class Assistant(Agent):
     at session start so all tool functions have access to the student's identity.
     """
 
-    def __init__(self, user_id: str) -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
+    def __init__(self, user_id: str, instructions: str = SYSTEM_PROMPT) -> None:
+        super().__init__(instructions=instructions)
         self._user_id = user_id
 
         # A smaller, faster model generates the filler phrase (acknowledgment)
@@ -318,6 +342,105 @@ class Assistant(Agent):
         else:
             return "TOOL_ERROR: No questions found for this topic. Naturally apologize and gently guide the student back to your main subjects (Class 9 and 10 Maths/Science)."
 
+    # -----------------------------------------------------------------------
+    # Tool 5: Schedule a study reminder
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def schedule_study_reminder(
+        self,
+        context: RunContext,
+        subject: str,
+        linphone_username: str,
+        minutes_from_now: int,
+    ) -> str:
+        """
+        Schedule a reminder call to the student to study a specific subject.
+        Use this when the student asks to be reminded later to study or practice.
+
+        Arguments:
+            subject           — e.g. "Biology", "Maths Chapter 3"
+            linphone_username — The student's Linphone username. IMPORTANT: If the speech-to-text captures this in Odia script (e.g. "ସ୍ୱୟମ ୪୨"), you MUST transliterate and convert it to a lowercase English alphanumeric string (e.g. "swayam42"). Linphone usernames only accept english letters and numbers.
+            minutes_from_now  — how many minutes from now to trigger the call (minimum 1, max 1440 for 24h)
+
+        ALWAYS ask the student's permission before scheduling. Example:
+        "ମୁଁ ତୁମକୁ {minutes_from_now} ମିନିଟ ପରେ {subject} ପାଇଁ ଡାକ ଦେବି। ରାଜି ଅଛ?"
+        Only call this tool after the student explicitly says yes.
+        """
+        import re
+        from datetime import datetime, timedelta, timezone
+
+        logger.info(f"[TOOL] schedule_study_reminder: subject={subject} linphone={linphone_username} mins={minutes_from_now}")
+
+        # Basic validation for username
+        if not linphone_username or len(linphone_username) < 3:
+            return "That doesn't look like a valid Linphone username. Please provide a valid username."
+
+        # Validate time range
+        if minutes_from_now < 1:
+            return "Please set a reminder for at least 1 minute from now."
+        if minutes_from_now > 1440:
+            return "I can only schedule reminders up to 24 hours (1440 minutes) in advance."
+
+        remind_at = (datetime.now(timezone.utc) + timedelta(minutes=minutes_from_now)).isoformat()
+
+        await save_reminder(
+            user_id=self._user_id,
+            linphone_username=linphone_username,
+            subject=subject,
+            remind_at=remind_at,
+        )
+
+        return (
+            f"Reminder saved! I will call you in {minutes_from_now} minute(s) "
+            f"to remind you to study {subject}. "
+            f"If you change your mind, just tell me to cancel it."
+        )
+
+    # -----------------------------------------------------------------------
+    # Tool 6: Cancel a study reminder
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def cancel_study_reminder(
+        self,
+        context: RunContext,
+        subject: str,
+    ) -> str:
+        """
+        Cancel an existing study reminder for a given subject.
+        Use this when the student says they no longer want a reminder,
+        or when they say 'stop reminders' during an outbound reminder call.
+
+        Arguments:
+            subject — the subject of the reminder to cancel (e.g. "Biology")
+        """
+        logger.info(f"[TOOL] cancel_study_reminder: user={self._user_id} subject={subject}")
+        cancelled = await cancel_reminder(user_id=self._user_id, subject=subject)
+        if cancelled:
+            return f"Done! I have cancelled your {subject} reminder. You won't receive any more calls for this."
+        return f"I couldn't find an active reminder for {subject}. Maybe it was already cancelled."
+
+    # -----------------------------------------------------------------------
+    # Tool 7: List current reminders
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def list_my_reminders(self, context: RunContext) -> str:
+        """
+        List all active study reminders for the current student.
+        Call this when the student asks 'what reminders do I have?' or
+        'when will you call me?' or 'show my reminders'.
+        """
+        logger.info(f"[TOOL] list_my_reminders: user={self._user_id}")
+        reminders = await list_reminders(user_id=self._user_id)
+        if not reminders:
+            return "You don't have any active reminders right now."
+        lines = []
+        for r in reminders:
+            lines.append(f"- {r['subject']} at {r['remind_at']} (status: {r['status']})")
+        return "Your active reminders:\n" + "\n".join(lines)
+
 # ---------------------------------------------------------------------------
 # Agent server
 # ---------------------------------------------------------------------------
@@ -342,32 +465,106 @@ async def my_agent(ctx: JobContext):
     # -----------------------------------------------------------------------
     await ctx.connect()
 
-    # Launch static data initialization in the background to avoid blocking LiveKit's 10s connection timeout.
+    # Launch static data initialization
     import asyncio
+    import json
     asyncio.create_task(init_db())
+    asyncio.create_task(init_reminders_table())
     asyncio.create_task(load_knowledge_base())
 
     # -----------------------------------------------------------------------
-    # Derive a stable user_id from the LiveKit participant identity.
-    # The frontend stores a UUID in localStorage and sends it to /api/token,
-    # which embeds it as the participant identity. We use it here.
+    # Detect if this is an outbound reminder call BEFORE waiting for anyone.
+    # Read from job metadata first (set by outbound_caller.py dispatch),
+    # fall back to room metadata.
     # -----------------------------------------------------------------------
+    room_metadata: dict = {}
+    try:
+        raw = ctx.job.metadata or getattr(ctx.room, "metadata", "") or ""
+        if raw:
+            room_metadata = json.loads(raw)
+    except Exception:
+        pass
 
-    participant = await ctx.wait_for_participant()
+    is_outbound: bool = bool(room_metadata.get("is_outbound", False))
+    outbound_subject: str = room_metadata.get("subject", "your studies")
+    outbound_student_name: str = room_metadata.get("student_name", "")
+    outbound_user_id: str = room_metadata.get("user_id", "")
+    sip_call_to: str = room_metadata.get("sip_call_to", "")
 
-    user_id: str = (
-        participant.identity
-        if participant and participant.identity
-        else f"anonymous_{ctx.room.name}"
-    )
-    logger.info(f"Session started for user_id='{user_id}'")
+    # -----------------------------------------------------------------------
+    # If outbound: dial the student's Linphone NOW (agent places the call).
+    # Per LiveKit docs: wait_until_answered=True so session starts only
+    # AFTER the student picks up — not while the phone is ringing.
+    # -----------------------------------------------------------------------
+    SIP_CALLEE_IDENTITY = "phone-student"
+    if is_outbound and sip_call_to:
+        trunk_id = os.environ.get("LIVEKIT_SIP_OUTBOUND_TRUNK_ID", "").strip()
+        if not trunk_id:
+            logger.error("LIVEKIT_SIP_OUTBOUND_TRUNK_ID not set — cannot make outbound call")
+            ctx.shutdown()
+            return
+        logger.info("[Outbound] Dialing sip:%s via trunk %s", sip_call_to, trunk_id)
+        from livekit import api as lk_api  # noqa: PLC0415
+        try:
+            await ctx.api.sip.create_sip_participant(
+                lk_api.CreateSIPParticipantRequest(
+                    room_name=ctx.room.name,
+                    sip_trunk_id=trunk_id,
+                    sip_call_to=sip_call_to,
+                    participant_identity=SIP_CALLEE_IDENTITY,
+                    participant_name=outbound_student_name or "Student",
+                    wait_until_answered=True,  # Block until answered
+                )
+            )
+        except lk_api.TwirpError as e:
+            logger.error(
+                "[Outbound] Call not answered: %s (SIP: %s)",
+                e.message,
+                e.metadata.get("sip_status", "?"),
+            )
+            ctx.shutdown()
+            return
+        except Exception as e:
+            logger.error("[Outbound] Dial error: %s", e)
+            ctx.shutdown()
+            return
+        logger.info("[Outbound] Call answered — waiting for SIP participant")
+        participant = await ctx.wait_for_participant(identity=SIP_CALLEE_IDENTITY)
+    else:
+        # Normal web/browser call — wait for the frontend participant
+        participant = await ctx.wait_for_participant()
+
+    # -----------------------------------------------------------------------
+    # Derive a stable user_id.
+    # For outbound SIP: use the user_id embedded in dispatch metadata.
+    # For web: use the participant identity set by the frontend.
+    # -----------------------------------------------------------------------
+    if is_outbound and outbound_user_id:
+        user_id = outbound_user_id
+    else:
+        user_id = (
+            participant.identity
+            if participant and participant.identity
+            else f"anonymous_{ctx.room.name}"
+        )
+    logger.info("Session started for user_id='%s' is_outbound=%s", user_id, is_outbound)
 
     # -----------------------------------------------------------------------
     # Load student profile and build a personalised greeting
     # -----------------------------------------------------------------------
     profile = await get_user(user_id)
 
-    if profile and profile.get("name"):
+    if is_outbound:
+        # Outbound reminder call — use the scripted opener
+        name = outbound_student_name or (profile or {}).get("name") or "Student"
+        greeting = (
+            f"ନମସ୍କାର {name}! ମୁଁ ମୋ ସାଥୀ। "
+            f"ଆପଣ ମୋତେ {outbound_subject} ପଢ଼ିବା ପାଇଁ ମନେ କରାଇ ଦେବାକୁ କହିଥିଲେ। "
+            f"ଏବେ ପ୍ରସ୍ତୁତ ଅଛନ୍ତି ନା?"
+        )
+        logger.info(f"Outbound call: name={name} subject={outbound_subject}")
+        system_prompt = OUTBOUND_CALL_SYSTEM_PROMPT.replace("{subject}", outbound_subject)
+    elif profile and profile.get("name"):
         # Returning student — greet by name and reference last interaction
         student_name = profile["name"]
         last_topics = profile.get("topics_covered") or []
@@ -380,10 +577,12 @@ async def my_agent(ctx: JobContext):
                 f"ଆଜି ସେଇଠୁ ଆରମ୍ଭ କରିବା ନା ନୂଆ କିଛି ଶିଖିବାକୁ ଇଚ୍ଛା ଅଛି?"
             )
         logger.info(f"Returning student: {student_name}")
+        system_prompt = SYSTEM_PROMPT
     else:
         # New student
         greeting = "ନମସ୍କାର! ଜୟ ଜଗନ୍ନାଥ! ମୁଁ ତୁମର ସାଥୀ। ପ୍ରଥମେ, ତୁମ ନାମ କ'ଣ କହିବ କି?"
         logger.info("New student — using default greeting")
+        system_prompt = SYSTEM_PROMPT
 
     # -----------------------------------------------------------------------
     # Build and start the session
@@ -408,6 +607,14 @@ async def my_agent(ctx: JobContext):
         preemptive_generation=True,
     )
 
+    # Use the correct system prompt depending on call type
+    agent_instructions = system_prompt if is_outbound else SYSTEM_PROMPT
+
+    from datetime import datetime, timezone, timedelta
+    ist = timezone(timedelta(hours=5, minutes=30))
+    ist_time = datetime.now(ist).strftime("%Y-%m-%d %I:%M %p IST")
+    agent_instructions += f"\n\n# CURRENT TIME\nThe current date and time is {ist_time}. Use this to calculate minutes_from_now if the user requests a specific time."
+
     @session.on("metrics_collected")
     def _on_metrics_collected(metrics):
         if hasattr(metrics, "end_of_utterance_delay"):
@@ -417,22 +624,13 @@ async def my_agent(ctx: JobContext):
             )
 
     await session.start(
-        agent=Assistant(user_id=user_id),
+        agent=Assistant(user_id=user_id, instructions=agent_instructions),
         room=ctx.room,
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: (
-                    noise_cancellation.BVCTelephony()
-                    if params.participant.kind
-                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
-                    else noise_cancellation.BVC()
-                ),
-            ),
-        ),
     )
 
-    # Speak the personalised (or default) greeting
-    session.say(greeting)
+    # Speak the greeting and await it so the agent finishes before listening.
+    # allow_interruptions=True lets the student cut in naturally mid-sentence.
+    await session.say(greeting, allow_interruptions=True)
 
 
 if __name__ == "__main__":
