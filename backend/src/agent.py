@@ -467,39 +467,87 @@ async def my_agent(ctx: JobContext):
 
     # Launch static data initialization
     import asyncio
+    import json
     asyncio.create_task(init_db())
     asyncio.create_task(init_reminders_table())
     asyncio.create_task(load_knowledge_base())
 
     # -----------------------------------------------------------------------
-    # Derive a stable user_id from the LiveKit participant identity.
-    # The frontend stores a UUID in localStorage and sends it to /api/token,
-    # which embeds it as the participant identity. We use it here.
+    # Detect if this is an outbound reminder call BEFORE waiting for anyone.
+    # Read from job metadata first (set by outbound_caller.py dispatch),
+    # fall back to room metadata.
     # -----------------------------------------------------------------------
-
-    participant = await ctx.wait_for_participant()
-
-    user_id: str = (
-        participant.identity
-        if participant and participant.identity
-        else f"anonymous_{ctx.room.name}"
-    )
-    logger.info(f"Session started for user_id='{user_id}'")
-
-    # -----------------------------------------------------------------------
-    # Detect if this is an outbound reminder call (launched by scheduler)
-    # -----------------------------------------------------------------------
-    import json
     room_metadata: dict = {}
     try:
-        if ctx.room.metadata:
-            room_metadata = json.loads(ctx.room.metadata)
+        raw = ctx.job.metadata or getattr(ctx.room, "metadata", "") or ""
+        if raw:
+            room_metadata = json.loads(raw)
     except Exception:
         pass
 
-    is_outbound: bool = room_metadata.get("is_outbound", False)
+    is_outbound: bool = bool(room_metadata.get("is_outbound", False))
     outbound_subject: str = room_metadata.get("subject", "your studies")
     outbound_student_name: str = room_metadata.get("student_name", "")
+    outbound_user_id: str = room_metadata.get("user_id", "")
+    sip_call_to: str = room_metadata.get("sip_call_to", "")
+
+    # -----------------------------------------------------------------------
+    # If outbound: dial the student's Linphone NOW (agent places the call).
+    # Per LiveKit docs: wait_until_answered=True so session starts only
+    # AFTER the student picks up — not while the phone is ringing.
+    # -----------------------------------------------------------------------
+    SIP_CALLEE_IDENTITY = "phone-student"
+    if is_outbound and sip_call_to:
+        trunk_id = os.environ.get("LIVEKIT_SIP_OUTBOUND_TRUNK_ID", "").strip()
+        if not trunk_id:
+            logger.error("LIVEKIT_SIP_OUTBOUND_TRUNK_ID not set — cannot make outbound call")
+            ctx.shutdown()
+            return
+        logger.info("[Outbound] Dialing sip:%s via trunk %s", sip_call_to, trunk_id)
+        from livekit import api as lk_api  # noqa: PLC0415
+        try:
+            await ctx.api.sip.create_sip_participant(
+                lk_api.CreateSIPParticipantRequest(
+                    room_name=ctx.room.name,
+                    sip_trunk_id=trunk_id,
+                    sip_call_to=sip_call_to,
+                    participant_identity=SIP_CALLEE_IDENTITY,
+                    participant_name=outbound_student_name or "Student",
+                    wait_until_answered=True,  # Block until answered
+                )
+            )
+        except lk_api.TwirpError as e:
+            logger.error(
+                "[Outbound] Call not answered: %s (SIP: %s)",
+                e.message,
+                e.metadata.get("sip_status", "?"),
+            )
+            ctx.shutdown()
+            return
+        except Exception as e:
+            logger.error("[Outbound] Dial error: %s", e)
+            ctx.shutdown()
+            return
+        logger.info("[Outbound] Call answered — waiting for SIP participant")
+        participant = await ctx.wait_for_participant(identity=SIP_CALLEE_IDENTITY)
+    else:
+        # Normal web/browser call — wait for the frontend participant
+        participant = await ctx.wait_for_participant()
+
+    # -----------------------------------------------------------------------
+    # Derive a stable user_id.
+    # For outbound SIP: use the user_id embedded in dispatch metadata.
+    # For web: use the participant identity set by the frontend.
+    # -----------------------------------------------------------------------
+    if is_outbound and outbound_user_id:
+        user_id = outbound_user_id
+    else:
+        user_id = (
+            participant.identity
+            if participant and participant.identity
+            else f"anonymous_{ctx.room.name}"
+        )
+    logger.info("Session started for user_id='%s' is_outbound=%s", user_id, is_outbound)
 
     # -----------------------------------------------------------------------
     # Load student profile and build a personalised greeting
@@ -578,20 +626,11 @@ async def my_agent(ctx: JobContext):
     await session.start(
         agent=Assistant(user_id=user_id, instructions=agent_instructions),
         room=ctx.room,
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: (
-                    noise_cancellation.BVCTelephony()
-                    if params.participant.kind
-                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
-                    else noise_cancellation.BVC()
-                ),
-            ),
-        ),
     )
 
-    # Speak the personalised (or default) greeting
-    session.say(greeting)
+    # Speak the greeting and await it so the agent finishes before listening.
+    # allow_interruptions=True lets the student cut in naturally mid-sentence.
+    await session.say(greeting, allow_interruptions=True)
 
 
 if __name__ == "__main__":

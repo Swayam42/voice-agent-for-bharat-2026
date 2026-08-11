@@ -48,11 +48,10 @@ async def init_reminders_table() -> None:
     """Create the reminders table. Drops existing table for schema upgrade during dev."""
     _DB_DIR.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(_DB_PATH) as db:
-        # Drop table to ensure clean schema migration for Linphone update
-        await db.execute("DROP TABLE IF EXISTS reminders")
+        # Ensure table exists without wiping data
         await db.execute(
             """
-            CREATE TABLE reminders (
+            CREATE TABLE IF NOT EXISTS reminders (
                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id           TEXT NOT NULL,
                 linphone_username TEXT NOT NULL,
