@@ -95,6 +95,12 @@ export default async function RootLayout({ children }: RootLayoutProps) {
             <span className="font-display text-foreground/70 pointer-events-auto text-lg tracking-wide sm:text-3xl">
               Mo Saathi
             </span>
+            <a
+              href="/escalations"
+              className="pointer-events-auto rounded-full border border-border bg-card/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
+            >
+              Help Requests
+            </a>
           </header>
 
           <GlobalClickSound />

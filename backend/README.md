@@ -16,11 +16,44 @@ The backend is built with Python and the LiveKit Agents SDK. It handles the AI l
    uv run python src/agent.py dev
    ```
 
+
 ## Features
 - **Persistent Memory**: Uses SQLite to store student profiles across sessions.
-- **Tools**: Includes `lookup_student_profile`, `save_student_profile`, and `get_next_exercise`.
-  > **Note on Data (Day 5 Requirement):** The `get_next_exercise` tool uses a **hand-built local dataset** (`backend/src/question_bank.py`) rather than a live external API.
+- **Tools**:
+  - `lookup_student_profile`, `save_student_profile`, `forget_me` — Day 3 memory
+  - `get_next_exercise` — Day 5 practice questions from local Class 9/10 dataset
+  - `schedule_study_reminder`, `cancel_study_reminder`, `list_my_reminders` — Day 6 outbound reminders
+  - `create_escalation` — **Day 7** human help requests (see below)
 - **Odia Support**: Native Odia TTS and STT processing.
+
+## Day 7 — Human Escalation Setup
+
+Mo Saathi escalates to a human teacher when:
+1. The student expresses **emotional distress** (hopelessness, exam anxiety, wanting to give up)
+2. The student **repeatedly fails** to understand the same topic after 3+ explanations
+
+### How it works
+1. Agent detects one of the two triggers
+2. Agent tells the student what info it will share and asks for **consent**
+3. If consent granted → saves a concise summary to SQLite → emails the teacher
+4. Student receives a **reference ID** (e.g. `ESC-A3B7C2D1`) and an honest timeline
+
+### Email setup (Resend + mail.swayamjethi.me)
+
+1. Create a free account at [resend.com](https://resend.com)
+2. Go to **Domains → Add Domain** → enter `mail.swayamjethi.me` (using a subdomain like `mail` is recommended to keep your root MX records clean).
+3. Add the 3 DNS records Resend displays to your domain registrar (hostnames like `resend._domainkey.mail` and `send.mail`).
+4. Wait for verification (usually < 5 minutes).
+5. Copy the API key from Resend dashboard.
+6. Fill in `.env`:
+   ```
+   RESEND_API_KEY=re_your_key_here
+   ESCALATION_EMAIL_TO=your-personal@email.com
+   ```
+
+> **Note:** The FROM address `mosaathi@mail.swayamjethi.me` only works after the domain is verified in Resend.
+> If you skip Resend setup, escalations are still saved to the local DB — only the email notification is skipped.
+
 # Backend — Voice Agent with Murf Falcon TTS
 
 The Python backend for the Voice Agent Starter. It runs a real-time voice AI pipeline using [LiveKit Agents](https://docs.livekit.io/agents), connecting Murf Falcon TTS, Deepgram STT, and Google Gemini into a single conversational agent.

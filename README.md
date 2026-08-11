@@ -1,9 +1,13 @@
-# Mo Saathi - Odia Voice Tutor
+# Mo Saathi — Odia Voice AI Tutor
 
+Mo Saathi is a conversational AI agent for Odia-speaking students in rural Odisha.
+It helps students practise Class 9/10 subjects, remembers their progress across sessions,
+makes outbound phone study reminders, and escalates to a human teacher when it detects
+emotional distress or repeated academic difficulty.
 
-Mo Saathi is a conversational AI agent designed for Odia-speaking students. It helps students practice their school subjects and learn interactively using native Odia language (powered by Sarvam AI for STT and Murf Falcon for TTS).
-
-Build a production voice AI agent in 5 minutes. Powered by the fastest TTS on the market - swap the system prompt to build anything from customer support to language tutors.
+**Day 7 feature:** Human escalation — Mo Saathi asks student consent, creates a concise
+help request, emails the teacher via [Resend](https://resend.com), and gives the student
+a reference ID and honest next step.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming) [![LiveKit](https://img.shields.io/badge/Transport-LiveKit-002cf2)](https://docs.livekit.io) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 

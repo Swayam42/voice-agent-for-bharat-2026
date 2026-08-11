@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-agent.py — Mo Saathi Voice Agent (Day 6: Outbound Reminder Calls)
-=================================================================
+agent.py — Mo Saathi Voice Agent (Day 7: Human Escalation)
+==========================================================
 Entry point for the LiveKit voice agent pipeline.
 
-New in Day 6
+New in Day 7
 ------------
-- Outbound study reminders (simulation mode — 100% free, no SIP account needed)
-- Three new tools: schedule_study_reminder, cancel_study_reminder, list_my_reminders
-- Background scheduler polling SQLite every 60s and triggering reminder calls
-- Outbound call detection via room metadata (is_outbound flag)
-- Personalised reminder opening script: "Hello {name}, this is Mo Saathi..."
+- create_escalation tool: agent detects emotional distress or repeated academic
+  failure, asks student consent, saves a concise summary, emails the teacher
+  via Resend (mosaathi@swayamjethi.me), and returns a reference ID.
+- Two escalation triggers:
+    1. Student is emotionally distressed (hopelessness, anxiety, giving up)
+    2. Student fails to understand a topic after 3+ agent explanations
 """
 
 import logging
@@ -37,6 +38,9 @@ from livekit.agents import (
 from livekit.plugins import murf, noise_cancellation, openai, silero
 
 from database import delete_user, get_user, init_db, save_user
+from escalation_mailer import send_escalation_email
+from escalations import init_escalations_table as init_escalations_table_fn
+from escalations import mark_email_sent, save_escalation
 from question_bank import get_random_question
 from rag import load_knowledge_base, search
 from reminders import cancel_reminder, init_reminders_table, list_reminders, save_reminder
@@ -59,11 +63,13 @@ DO NOT repeat any greeting, do NOT say "Namaskar", "Jay Jagannath", or introduce
 Dive straight into the conversation from where the student left off (if returning) or wait for their first question (if new).
 
 # MEMORY & TOOLS
-You have access to four tools:
+You have access to these tools:
 1. lookup_student_profile — Call this at the start of EVERY session to recall facts about this student.
-2. save_student_profile — Call this when you learn something new about the student (name, class, topics covered, mistakes). ALWAYS ask the student's permission before saving. Example: "Mu tumar naam save kari deba ki?" (Shall I remember your name?). If they say no, do NOT call this tool.
+2. save_student_profile — Call this when you learn something new about the student (name, class, topics covered, mistakes). ALWAYS ask the student's permission before saving. If they say no, do NOT call this tool.
 3. forget_me — Call this when the student explicitly asks to be forgotten. Confirm once before calling.
-4. get_next_exercise — Whenever a student asks to be tested, wants practice questions, a quiz, MCQs, or revision exercises (e.g. "test me", "give me a question", "practice kariba"), you MUST call this tool. NEVER invent questions yourself. If the tool returns a question, translate it into Odia naturally. If the tool fails to find a question, gracefully and playfully apologize, and redirect the student to what you DO know (e.g., Class 9 and 10 Maths and Science).
+4. get_next_exercise — Whenever a student asks to be tested, wants practice questions, a quiz, MCQs, or revision exercises, you MUST call this tool. NEVER invent questions yourself.
+5. schedule_study_reminder, cancel_study_reminder, list_my_reminders — Manage outbound phone study reminders.
+6. create_escalation — Call this ONLY in two situations: (A) The student expresses emotional distress — hopelessness, wanting to give up, crying, severe exam anxiety. (B) The student cannot understand the same concept after 3+ of your explanations. WORKFLOW: First tell the student what info you will share. Then explicitly ask permission. Only call the tool if they say yes.
 
 # OBJECTIVES
 Your goal is not only to answer questions, but to make the student curious enough to ask the next question.
@@ -441,6 +447,103 @@ class Assistant(Agent):
             lines.append(f"- {r['subject']} at {r['remind_at']} (status: {r['status']})")
         return "Your active reminders:\n" + "\n".join(lines)
 
+    # -----------------------------------------------------------------------
+    # Tool 8: Create human escalation (Day 7)
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        reason: str,
+        summary: str,
+        urgency: str,
+        contact_method: str,
+        contact_info: str,
+        consent_obtained: bool,
+    ) -> str:
+        """
+        Request human teacher help when the student needs support beyond AI.
+
+        WHEN TO USE — Two situations only:
+        1. The student is emotionally distressed: expressing hopelessness, wanting
+           to give up, crying, or severe exam anxiety.
+        2. The student cannot understand the same concept after 3+ of your
+           explanations (repeated academic failure on the same topic).
+
+        CONSENT WORKFLOW (follow every time, in order):
+          Step 1: Tell the student what you will share:
+                  their name, today's topic/situation, and a brief summary.
+          Step 2: Ask explicitly for their contact details (e.g. phone number or email)
+                  so the teacher can contact them back.
+          Step 3: Ask explicitly: "Mu apananka naam, contact info (e.g. {contact_info}) aau
+                  aajira session summary eka teacher ku pathaibi. Raji achanti?"
+          Step 4: If they say YES -> call this tool with consent_obtained=True.
+          Step 5: If they say NO  -> do NOT call this tool. Respect their choice.
+
+        Arguments:
+            reason           Brief escalation reason, max 80 chars.
+                             E.g. "Student expressed exam hopelessness"
+            summary          2-4 sentence digest: who needs help, what happened,
+                             what the agent already tried, urgency context.
+                             NEVER include passwords, OTPs, or private data.
+            urgency          One of: "high" (acute distress), "medium" (academic
+                             difficulty), "low" (general concern).
+            contact_method   Student's preferred follow-up: "phone_call",
+                             "email", or "visit".
+            contact_info     The student's phone number or email address to reach them at.
+            consent_obtained Must be True. If the student has NOT said yes,
+                             do NOT call this tool at all.
+        """
+        if not consent_obtained:
+            logger.warning("[Tool] create_escalation called without consent -- blocked.")
+            return (
+                "Escalation NOT created: the student did not give consent. "
+                "Do not call this tool without explicit permission."
+            )
+
+        # Enrich with stored profile
+        profile = await get_user(self._user_id)
+        student_name = (profile or {}).get("name", "")
+        language = (profile or {}).get("language_preference", "odia")
+
+        ref_id = await save_escalation(
+            user_id=self._user_id,
+            reason=reason,
+            summary=summary,
+            student_name=student_name,
+            urgency=urgency,
+            language=language,
+            contact_method=contact_method,
+            contact_info=contact_info,
+        )
+
+        email_sent = await send_escalation_email(
+            ref_id=ref_id,
+            student_name=student_name,
+            reason=reason,
+            summary=summary,
+            urgency=urgency,
+            language=language,
+            contact_method=contact_method,
+            contact_info=contact_info,
+        )
+        if email_sent:
+            await mark_email_sent(ref_id)
+
+        logger.info(
+            "[Tool] create_escalation: ref=%s urgency=%s email_sent=%s",
+            ref_id, urgency, email_sent,
+        )
+        return (
+            f"Escalation created. Reference ID: {ref_id}. "
+            f"A teacher has been notified with a summary of today's session. "
+            + ("An email notification was also sent. " if email_sent else "")
+            + f"You will be contacted at {contact_info} via {contact_method.replace('_', ' ')} soon. "
+            f"Please remember your reference number: {ref_id}. "
+            f"A human will review this and get back to you — usually within one school day."
+        )
+
 # ---------------------------------------------------------------------------
 # Agent server
 # ---------------------------------------------------------------------------
@@ -470,6 +573,7 @@ async def my_agent(ctx: JobContext):
     import json
     asyncio.create_task(init_db())
     asyncio.create_task(init_reminders_table())
+    asyncio.create_task(init_escalations_table_fn())
     asyncio.create_task(load_knowledge_base())
 
     # -----------------------------------------------------------------------
