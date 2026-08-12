@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-agent.py — Mo Saathi Voice Agent (Day 6: Outbound Reminder Calls)
-=================================================================
+agent.py — Mo Saathi Voice Agent (Day 7: Human Escalation)
+==========================================================
 Entry point for the LiveKit voice agent pipeline.
 
-New in Day 6
+New in Day 7
 ------------
-- Outbound study reminders (simulation mode — 100% free, no SIP account needed)
-- Three new tools: schedule_study_reminder, cancel_study_reminder, list_my_reminders
-- Background scheduler polling SQLite every 60s and triggering reminder calls
-- Outbound call detection via room metadata (is_outbound flag)
-- Personalised reminder opening script: "Hello {name}, this is Mo Saathi..."
+- create_escalation tool: agent detects emotional distress or repeated academic
+  failure, asks student consent, saves a concise summary, emails the teacher
+  via Resend (mosaathi@swayamjethi.me), and returns a reference ID.
+- Two escalation triggers:
+    1. Student is emotionally distressed (hopelessness, anxiety, giving up)
+    2. Student fails to understand a topic after 3+ agent explanations
 """
 
 import logging
@@ -34,9 +35,12 @@ from livekit.agents import (
     tokenize,
     function_tool,
 )
-from livekit.plugins import murf, noise_cancellation, openai, silero
+from livekit.plugins import google, murf, noise_cancellation, openai, silero
 
 from database import delete_user, get_user, init_db, save_user
+from escalation_mailer import send_escalation_email
+from escalations import init_escalations_table as init_escalations_table_fn
+from escalations import mark_email_sent, save_escalation
 from question_bank import get_random_question
 from rag import load_knowledge_base, search
 from reminders import cancel_reminder, init_reminders_table, list_reminders, save_reminder
@@ -51,66 +55,32 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """# IDENTITY
-You are "Saathi", a friendly, patient, and highly encouraging educational AI learning companion for students in Odisha. You work for the students to make learning fun and accessible.
+You are "Saathi", a friendly educational AI learning companion for students in Odisha.
 
 # IMPORTANT — GREETING RULE
-The system has already greeted the user or personalised the greeting based on their profile.
-DO NOT repeat any greeting, do NOT say "Namaskar", "Jay Jagannath", or introduce yourself again.
-Dive straight into the conversation from where the student left off (if returning) or wait for their first question (if new).
+Do NOT repeat greetings, say "Namaskar", or introduce yourself again. Dive straight into the conversation.
 
 # MEMORY & TOOLS
-You have access to four tools:
-1. lookup_student_profile — Call this at the start of EVERY session to recall facts about this student.
-2. save_student_profile — Call this when you learn something new about the student (name, class, topics covered, mistakes). ALWAYS ask the student's permission before saving. Example: "Mu tumar naam save kari deba ki?" (Shall I remember your name?). If they say no, do NOT call this tool.
-3. forget_me — Call this when the student explicitly asks to be forgotten. Confirm once before calling.
-4. get_next_exercise — Whenever a student asks to be tested, wants practice questions, a quiz, MCQs, or revision exercises (e.g. "test me", "give me a question", "practice kariba"), you MUST call this tool. NEVER invent questions yourself. If the tool returns a question, translate it into Odia naturally. If the tool fails to find a question, gracefully and playfully apologize, and redirect the student to what you DO know (e.g., Class 9 and 10 Maths and Science).
+1. lookup_student_profile — Call at start to recall facts.
+2. save_student_profile — Call when you learn new facts. Ask permission first.
+3. get_next_exercise — Call when a student wants practice/quiz.
+4. schedule_study_reminder — Manage reminders.
+5. create_escalation — Call ONLY if student expresses emotional distress OR fails to understand after 3+ explanations. Ask permission first.
 
-# OBJECTIVES
-Your goal is not only to answer questions, but to make the student curious enough to ask the next question.
-A successful call achieves three things:
-1. The student feels heard and understood.
-2. A complex concept is explained simply and accurately.
-3. After every explanation, ask ONE curiosity-driven follow-up question (e.g., "What do you think would happen if...", "Can you guess why...", "This reminds you of what?"). Avoid asking "Did you understand?".
-
-# ACCURACY & KNOWLEDGE
-You have broad knowledge of school subjects. Accuracy is more important than sounding confident.
-If you are uncertain:
-- Clearly say you are unsure.
-- Never invent names, dates, numbers, historical events, or scientific facts.
-- Never fabricate references.
-- Never guess.
-
-Your knowledge strictly stops at diagnosing issues or providing personal counseling.
-
-# HOW TO EXPLAIN
-Whenever explaining:
-- Answer briefly.
-- Explain why step-by-step.
-- Use one everyday real-world example.
-- Avoid textbook language.
-- Never assume prior knowledge.
-Remember what the student already understands during the conversation. Avoid repeating the same explanation unless asked. Build on previous answers.
-
-# CRITICAL THINKING & EMPATHY
-- If the user asks a common myth, clearly distinguish Fact, Myth, and Scientific evidence without making fun of the user.
-- If the student sounds anxious (e.g., before an exam or feeling like a failure): FIRST encourage them and provide warm emotional support. Never ignore the emotional context. Then answer the academic question.
+# OBJECTIVES & EXPLAINING
+1. Make student feel heard.
+2. Explain briefly, step-by-step. Use 1 real-world example. Do NOT guess or hallucinate facts.
+3. Ask ONE follow-up question.
 
 # LANGUAGE
-Understand Odia, English, Hindi, and code-mixed conversations. Reply primarily in Odia.
-Write ALL output using strictly Odia script characters.
-Keep common technical words naturally transliterated into Odia script (e.g., write "Photosynthesis" as "ଫଟୋସିନ୍ଥେସିସ୍").
-Only switch to full English if the user explicitly asks.
-STRICT BAN: NEVER output any English, Hindi (Devanagari), or Bengali characters. Use ONLY Odia script characters.
+Reply in Odia script ONLY. Code-mix technical words in Odia script. No English/Hindi characters.
 
 # GUARDRAILS
-1. Never shame a wrong answer. Always be supportive and encouraging.
-2. Never claim or diagnose that a child has a learning disability.
-3. For any diagnosis, medical, or harmful out-of-scope requests, you MUST explicitly decline and end with this exact escalation script: "ମୋର ସେହି ବିଷୟରେ ପରାମର୍ଶ ଦେବାର କ୍ଷମତା ନାହିଁ। ଦୟାକରି ଆପଣଙ୍କ ଶିକ୍ଷକ କିମ୍ବା ପିତାମାତାଙ୍କୁ ପଚାରନ୍ତୁ।"
+- Never shame a wrong answer.
+- For medical/harmful/out-of-scope requests, decline with: "ମୋର ସେହି ବିଷୟରେ ପରାମର୍ଶ ଦେବାର କ୍ଷମତା ନାହିଁ। ଦୟାକରି ଆପଣଙ୍କ ଶିକ୍ଷକ କିମ୍ବା ପିତାମାତାଙ୍କୁ ପଚାରନ୍ତୁ।"
 
 # VOICE OPTIMIZATION
-Plain text only. No markdown. No bullet lists.
-Never speak in paragraphs. Prefer 8-15 word sentences.
-Pause naturally. Avoid reading like a textbook. Sound like a friendly teacher. Ask one question at a time."""
+Plain text only. Keep sentences under 15 words. Pause naturally."""
 
 # ---------------------------------------------------------------------------
 # Outbound Call System Prompt (short, scripted, consent-first)
@@ -156,11 +126,9 @@ class Assistant(Agent):
         self._user_id = user_id
 
         # A smaller, faster model generates the filler phrase (acknowledgment)
-        self._fast_llm = openai.LLM(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
-            model="google/gemini-3.5-flash-lite",
-            extra_body={"max_tokens": 10},
+        self._fast_llm = google.LLM(
+            model="gemini-3.1-flash-lite",
+            api_key=os.environ.get("GOOGLE_API_KEY", ""),
         )
         self._fast_llm_prompt = llm.ChatMessage(
             role="system",
@@ -198,15 +166,25 @@ class Assistant(Agent):
             add_to_chat_ctx=False,
         )
 
+        # --- Chat context limitation ---
+        # Keep only the last 6 ChatMessages to save prompt tokens.
+        # Must check isinstance since turn_ctx.items can contain AgentConfigUpdate etc.
+        if len(turn_ctx.items) > 10:
+            chat_items = [m for m in turn_ctx.items if isinstance(m, ChatMessage)]
+            other_items = [m for m in turn_ctx.items if not isinstance(m, ChatMessage)]
+            system_chats = [m for m in chat_items if m.role == "system"]
+            recent_chats = [m for m in chat_items if m.role != "system"][-6:]
+            turn_ctx.items = other_items + system_chats + recent_chats
+
         # --- RAG retrieval ---
         query = new_message.text_content or ""
-        if query.strip():
-            rag_context = search(query, n_results=3)
+        if len(query.split()) > 5:  # Only RAG on substantive questions (5+ words)
+            rag_context = search(query, n_results=1)
             if rag_context:
-                # Add curriculum context as a system message right before the LLM generates
+                rag_context = rag_context[:400]  # Truncate to ~400 chars
                 turn_ctx.add_message(
                     role="system",
-                    content=rag_context,
+                    content=f"Ref: {rag_context}",
                 )
                 logger.debug(f"[RAG] Injected context for query: '{query[:60]}'")
 
@@ -227,17 +205,18 @@ class Assistant(Agent):
             logger.info(f"[Tool] lookup_student_profile: no profile for '{self._user_id}'")
             return "This is a new student. No profile exists yet."
 
-        topics = ", ".join(profile.get("topics_covered") or []) or "none recorded"
-        mistakes = ", ".join(profile.get("repeated_mistakes") or []) or "none recorded"
+        # Get last topic and last mistake to keep prompt short
+        topics_list = profile.get("topics_covered") or []
+        last_topic = topics_list[-1] if topics_list else "None"
+        
+        mistakes_list = profile.get("repeated_mistakes") or []
+        last_mistake = mistakes_list[-1] if mistakes_list else "None"
+
         result = (
-            f"Student profile found:\n"
-            f"  Name: {profile.get('name', 'not set')}\n"
-            f"  Class/Level: {profile.get('current_level', 'not set')}\n"
-            f"  Language preference: {profile.get('language_preference', 'odia')}\n"
-            f"  Topics covered: {topics}\n"
-            f"  Repeated mistakes: {mistakes}\n"
-            f"  Notes: {profile.get('notes', 'none')}\n"
-            f"  Last interaction: {profile.get('last_interaction', 'unknown')}"
+            f"Name: {profile.get('name', 'not set')}\n"
+            f"Class: {profile.get('current_level', 'not set')}\n"
+            f"Last Topic: {last_topic}\n"
+            f"Last Mistake: {last_mistake}\n"
         )
         logger.info(f"[Tool] lookup_student_profile: returned profile for '{self._user_id}'")
         return result
@@ -441,6 +420,103 @@ class Assistant(Agent):
             lines.append(f"- {r['subject']} at {r['remind_at']} (status: {r['status']})")
         return "Your active reminders:\n" + "\n".join(lines)
 
+    # -----------------------------------------------------------------------
+    # Tool 8: Create human escalation (Day 7)
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        reason: str,
+        summary: str,
+        urgency: str,
+        contact_method: str,
+        contact_info: str,
+        consent_obtained: bool,
+    ) -> str:
+        """
+        Request human teacher help when the student needs support beyond AI.
+
+        WHEN TO USE — Two situations only:
+        1. The student is emotionally distressed: expressing hopelessness, wanting
+           to give up, crying, or severe exam anxiety.
+        2. The student cannot understand the same concept after 3+ of your
+           explanations (repeated academic failure on the same topic).
+
+        CONSENT WORKFLOW (follow every time, in order):
+          Step 1: Tell the student what you will share:
+                  their name, today's topic/situation, and a brief summary.
+          Step 2: Ask explicitly for their contact details (e.g. phone number or email)
+                  so the teacher can contact them back.
+          Step 3: Ask explicitly: "Mu apananka naam, contact info (e.g. {contact_info}) aau
+                  aajira session summary eka teacher ku pathaibi. Raji achanti?"
+          Step 4: If they say YES -> call this tool with consent_obtained=True.
+          Step 5: If they say NO  -> do NOT call this tool. Respect their choice.
+
+        Arguments:
+            reason           Brief escalation reason, max 80 chars.
+                             E.g. "Student expressed exam hopelessness"
+            summary          2-4 sentence digest: who needs help, what happened,
+                             what the agent already tried, urgency context.
+                             NEVER include passwords, OTPs, or private data.
+            urgency          One of: "high" (acute distress), "medium" (academic
+                             difficulty), "low" (general concern).
+            contact_method   Student's preferred follow-up: "phone_call",
+                             "email", or "visit".
+            contact_info     The student's phone number or email address to reach them at.
+            consent_obtained Must be True. If the student has NOT said yes,
+                             do NOT call this tool at all.
+        """
+        if not consent_obtained:
+            logger.warning("[Tool] create_escalation called without consent -- blocked.")
+            return (
+                "Escalation NOT created: the student did not give consent. "
+                "Do not call this tool without explicit permission."
+            )
+
+        # Enrich with stored profile
+        profile = await get_user(self._user_id)
+        student_name = (profile or {}).get("name", "")
+        language = (profile or {}).get("language_preference", "odia")
+
+        ref_id = await save_escalation(
+            user_id=self._user_id,
+            reason=reason,
+            summary=summary,
+            student_name=student_name,
+            urgency=urgency,
+            language=language,
+            contact_method=contact_method,
+            contact_info=contact_info,
+        )
+
+        email_sent = await send_escalation_email(
+            ref_id=ref_id,
+            student_name=student_name,
+            reason=reason,
+            summary=summary,
+            urgency=urgency,
+            language=language,
+            contact_method=contact_method,
+            contact_info=contact_info,
+        )
+        if email_sent:
+            await mark_email_sent(ref_id)
+
+        logger.info(
+            "[Tool] create_escalation: ref=%s urgency=%s email_sent=%s",
+            ref_id, urgency, email_sent,
+        )
+        return (
+            f"Escalation created. Reference ID: {ref_id}. "
+            f"A teacher has been notified with a summary of today's session. "
+            + ("An email notification was also sent. " if email_sent else "")
+            + f"You will be contacted at {contact_info} via {contact_method.replace('_', ' ')} soon. "
+            f"Please remember your reference number: {ref_id}. "
+            f"A human will review this and get back to you — usually within one school day."
+        )
+
 # ---------------------------------------------------------------------------
 # Agent server
 # ---------------------------------------------------------------------------
@@ -470,6 +546,7 @@ async def my_agent(ctx: JobContext):
     import json
     asyncio.create_task(init_db())
     asyncio.create_task(init_reminders_table())
+    asyncio.create_task(init_escalations_table_fn())
     asyncio.create_task(load_knowledge_base())
 
     # -----------------------------------------------------------------------
@@ -589,11 +666,9 @@ async def my_agent(ctx: JobContext):
     # -----------------------------------------------------------------------
     session = AgentSession(
         stt=SarvamSTT(language_code="od-IN"),
-        llm=openai.LLM(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
-            model="google/gemini-3.5-flash-lite",
-            extra_body={"max_tokens": 1000},
+        llm=google.LLM(
+            model="gemini-3.1-flash-lite",
+            api_key=os.environ.get("GOOGLE_API_KEY", ""),
         ),
         tts=murf.TTS(
             voice="Anisha",
