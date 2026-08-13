@@ -190,6 +190,10 @@ def get_random_question(subject: str, class_level: str, topic: Optional[str] = N
     elif "class" in class_level_lower and not " " in class_level_lower:
         class_level_lower = class_level_lower.replace("class", "class ")
         
+    # Map science sub-topics to science
+    if subject_lower in ["physics", "chemistry", "biology", "botany", "zoology"]:
+        subject_lower = "science"
+        
     if subject_lower not in DATASET:
         return None
         

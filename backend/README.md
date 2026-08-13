@@ -302,6 +302,87 @@ backend/
 - [LiveKit Agents Docs](https://docs.livekit.io/agents)
 - [Deepgram Nova-3 Docs](https://developers.deepgram.com)
 
+---
+
+## Day 8 — Call Analytics
+
+### What counts as a successful call?
+
+Mo Saathi belongs to the **Learning & Literacy** track.
+
+A call is **successful** when the student reaches and attempts at least one
+practice exercise — i.e. the `get_next_exercise` tool is called during the
+session.
+
+A call is **failed** when the session ends before any exercise is reached
+(student disconnected too early, changed topic, or the session was abandoned).
+
+**Success is determined deterministically** — no LLM call is made at call end.
+The signal is a simple flag set by the tool in real-time.
+
+### Data model
+
+Analytics are stored in the shared SQLite database (`backend/data/mo_saathi.db`)
+in the `call_sessions` table:
+
+| Column              | Type    | Description                                |
+|---------------------|---------|--------------------------------------------|
+| `session_id`        | TEXT PK | LiveKit room name (stable call identity)   |
+| `user_id`           | TEXT    | Participant identity from LiveKit          |
+| `call_type`         | TEXT    | `inbound` (browser) or `outbound` (SIP)    |
+| `language`          | TEXT    | STT language code (`od-IN`)                |
+| `outcome`           | TEXT    | `in_progress` → `successful` or `failed`   |
+| `exercise_attempted`| INTEGER | 1 if get_next_exercise was called          |
+| `tool_calls_count`  | INTEGER | Total number of tool invocations           |
+| `success_reason`    | TEXT    | `exercise_tool_called` (when successful)   |
+| `failure_reason`    | TEXT    | `ended_before_exercise` (when failed)      |
+| `started_at`        | TEXT    | ISO-8601 UTC timestamp                     |
+| `ended_at`          | TEXT    | ISO-8601 UTC timestamp (NULL while live)   |
+| `duration_sec`      | INTEGER | Wall-clock seconds (NULL while live)       |
+
+The table is created automatically at agent startup and migrates safely on
+existing databases using `ALTER TABLE … ADD COLUMN IF NOT EXISTS`.
+
+### How dashboard numbers are calculated
+
+All metrics come from simple SQL aggregates — no LLM, no transcript processing:
+
+```sql
+-- Total / Successful / Failed
+SELECT COUNT(*),
+       SUM(CASE WHEN outcome='successful' THEN 1 ELSE 0 END),
+       SUM(CASE WHEN outcome='failed'     THEN 1 ELSE 0 END)
+FROM call_sessions;
+
+-- Success rate
+ROUND(successful / total * 100, 1)
+
+-- Average duration
+AVG(duration_sec)
+```
+
+### Privacy
+
+The analytics dashboard does **not** display:
+- Full user IDs (anonymised to an 8-character hash)
+- Phone numbers or email addresses
+- Conversation transcripts
+- Escalation content
+- Raw student messages
+
+Session identifiers shown in the UI are the last 6 characters of the LiveKit
+room name (e.g. `4505`) — non-PII slugs assigned by LiveKit.
+
+### Viewing the dashboard locally
+
+1. Start the backend: `uv run python src/agent.py dev`
+2. Start the frontend: `cd frontend && pnpm dev`
+3. Open: **http://localhost:3000/analytics**
+
+The dashboard auto-refreshes every 10 seconds. Make a learning call and ask
+the agent for a practice question — the Successful count will increment.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
