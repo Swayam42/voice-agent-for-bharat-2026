@@ -44,6 +44,13 @@ from escalations import mark_email_sent, save_escalation
 from question_bank import get_random_question
 from rag import load_knowledge_base, search
 from reminders import cancel_reminder, init_reminders_table, list_reminders, save_reminder
+from call_sessions import (
+    init_sessions_table,
+    start_session,
+    mark_exercise_attempted,
+    increment_tool_calls,
+    end_session,
+)
 from sarvam_stt import SarvamSTT
 
 logger = logging.getLogger("agent")
@@ -121,9 +128,10 @@ class Assistant(Agent):
     at session start so all tool functions have access to the student's identity.
     """
 
-    def __init__(self, user_id: str, instructions: str = SYSTEM_PROMPT) -> None:
+    def __init__(self, user_id: str, instructions: str = SYSTEM_PROMPT, room_name: str = "") -> None:
         super().__init__(instructions=instructions)
         self._user_id = user_id
+        self._room_name = room_name
 
         # A smaller, faster model generates the filler phrase (acknowledgment)
         self._fast_llm = google.LLM(
@@ -315,8 +323,14 @@ class Assistant(Agent):
         """
         logger.info(f"[TOOL] get_next_exercise called subject={subject} class={class_level}")
         result = get_random_question(subject, class_level, topic)
-        
+
+        # Track every tool invocation for analytics
+        import asyncio as _asyncio
+        _asyncio.create_task(increment_tool_calls(self._room_name))
+
         if result:
+            # Mark session successful — student reached an exercise (Day 8)
+            _asyncio.create_task(mark_exercise_attempted(self._room_name))
             return result["text"]
         else:
             return "TOOL_ERROR: No questions found for this topic. Naturally apologize and gently guide the student back to your main subjects (Class 9 and 10 Maths/Science)."
@@ -547,6 +561,7 @@ async def my_agent(ctx: JobContext):
     asyncio.create_task(init_db())
     asyncio.create_task(init_reminders_table())
     asyncio.create_task(init_escalations_table_fn())
+    asyncio.create_task(init_sessions_table())
     asyncio.create_task(load_knowledge_base())
 
     # -----------------------------------------------------------------------
@@ -626,6 +641,20 @@ async def my_agent(ctx: JobContext):
         )
     logger.info("Session started for user_id='%s' is_outbound=%s", user_id, is_outbound)
 
+    # Record session start for analytics (Day 8)
+    call_type = "outbound" if is_outbound else "inbound"
+    asyncio.create_task(start_session(
+        session_id=ctx.room.name,
+        user_id=user_id,
+        call_type=call_type,
+        language="od-IN",
+    ))
+
+    # End session when the room disconnects
+    @ctx.room.on("disconnected")
+    def _on_room_disconnected(*_args):
+        asyncio.create_task(end_session(ctx.room.name))
+
     # -----------------------------------------------------------------------
     # Load student profile and build a personalised greeting
     # -----------------------------------------------------------------------
@@ -666,8 +695,10 @@ async def my_agent(ctx: JobContext):
     # -----------------------------------------------------------------------
     session = AgentSession(
         stt=SarvamSTT(language_code="od-IN"),
+        # openrouter/free routes to random models that don't support Odia script
+        # google.LLM with gemini-2.0-flash is the only reliable multilingual option
         llm=google.LLM(
-            model="gemini-3.1-flash-lite",
+            model="gemini-3.5-flash",  # Current stable Gemini model with Odia support
             api_key=os.environ.get("GOOGLE_API_KEY", ""),
         ),
         tts=murf.TTS(
@@ -699,7 +730,7 @@ async def my_agent(ctx: JobContext):
             )
 
     await session.start(
-        agent=Assistant(user_id=user_id, instructions=agent_instructions),
+        agent=Assistant(user_id=user_id, instructions=agent_instructions, room_name=ctx.room.name),
         room=ctx.room,
     )
 
