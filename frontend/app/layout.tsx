@@ -98,13 +98,13 @@ export default async function RootLayout({ children }: RootLayoutProps) {
             <div className="pointer-events-auto flex items-center gap-2">
               <a
                 href="/analytics"
-                className="rounded-full border border-border bg-card/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
+                className="pencil-box font-hand bg-card/90 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
               >
                 Analytics
               </a>
               <a
                 href="/escalations"
-                className="rounded-full border border-border bg-card/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
+                className="pencil-box font-hand bg-card/90 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
               >
                 Help Requests
               </a>

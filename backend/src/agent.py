@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-agent.py — Mo Saathi Voice Agent (Day 7: Human Escalation)
+agent.py — Mo Saathi Voice Agent (Day 9: Science Specialist Handoff)
 ==========================================================
 Entry point for the LiveKit voice agent pipeline.
 
-New in Day 7
+New in Day 9
 ------------
-- create_escalation tool: agent detects emotional distress or repeated academic
-  failure, asks student consent, saves a concise summary, emails the teacher
-  via Resend (mosaathi@swayamjethi.me), and returns a reference ID.
-- Two escalation triggers:
-    1. Student is emotionally distressed (hopelessness, anxiety, giving up)
-    2. Student fails to understand a topic after 3+ agent explanations
+- ScienceSpecialist agent: a dedicated Physics/Chemistry/Biology expert for
+  Class 9 and 10 students in Odisha.
+- transfer_to_science_specialist tool: Mo Saathi hands off to the specialist
+  when the student needs deep subject-level help beyond general guidance.
+- Full conversation context is passed at handoff so the student never has to
+  repeat themselves.
 """
 
 import logging
@@ -73,6 +73,7 @@ Do NOT repeat greetings, say "Namaskar", or introduce yourself again. Dive strai
 3. get_next_exercise — Call when a student wants practice/quiz.
 4. schedule_study_reminder — Manage reminders.
 5. create_escalation — Call ONLY if student expresses emotional distress OR fails to understand after 3+ explanations. Ask permission first.
+6. transfer_to_science_specialist — Call when the student needs a DEEP explanation of Physics, Chemistry, or Biology (Class 9 or 10). Before calling, say: "ଏହି ପ୍ରଶ୍ନ ପାଇଁ ମୁଁ ତୁମ୍ଭକୁ ଆମ ବିଜ୍ଞାନ ବିଶେଷଜ୍ଞ 'ବିଜ୍ଞାନ ସାଥୀ' ପାଖକୁ ଯୋଡ଼ୁଛି।"
 
 # OBJECTIVES & EXPLAINING
 1. Make student feel heard.
@@ -80,14 +81,15 @@ Do NOT repeat greetings, say "Namaskar", or introduce yourself again. Dive strai
 3. Ask ONE follow-up question.
 
 # LANGUAGE
-Reply in Odia script ONLY. Code-mix technical words in Odia script. No English/Hindi characters.
+- Speak naturally in Odia.
+- If using English technical words, write them in English alphabet, but NEVER put English translations in brackets. 
+- Do not repeat words in multiple languages (e.g., do not say "ବଳ (Force)"). Pick one language for the word and stick to it.
+- Plain text only. Keep sentences under 15 words. Pause naturally.
 
 # GUARDRAILS
 - Never shame a wrong answer.
 - For medical/harmful/out-of-scope requests, decline with: "ମୋର ସେହି ବିଷୟରେ ପରାମର୍ଶ ଦେବାର କ୍ଷମତା ନାହିଁ। ଦୟାକରି ଆପଣଙ୍କ ଶିକ୍ଷକ କିମ୍ବା ପିତାମାତାଙ୍କୁ ପଚାରନ୍ତୁ।"
-
-# VOICE OPTIMIZATION
-Plain text only. Keep sentences under 15 words. Pause naturally."""
+"""
 
 # ---------------------------------------------------------------------------
 # Outbound Call System Prompt (short, scripted, consent-first)
@@ -114,6 +116,77 @@ Your opening is strictly scripted — say it word for word:
 
 # LANGUAGE
 Reply primarily in Odia script. Keep sentences under 15 words. Plain text only, no markdown."""
+
+
+# ---------------------------------------------------------------------------
+# Science Specialist Prompt (Day 9)
+# ---------------------------------------------------------------------------
+
+SCIENCE_SPECIALIST_PROMPT = """# IDENTITY
+You are "Vigyan Saathi" (ବିଜ୍ଞାନ ସାଥୀ), an expert Science teacher specialising in
+Class 9 and Class 10 Physics, Chemistry, and Biology for Odia-medium students.
+Mo Saathi transferred this student to you because they need in-depth science help.
+
+# YOUR ONE JOB
+Explain science concepts deeply, clearly, and accurately.
+If asked to do anything outside science (Maths, History, scheduling, etc.),
+politely say: "ସେ ବିଷୟ ପାଇଁ ଦୟାକରି ମୋ ସାଥୀ ସହ କଥା ହୁଅ। ମୁଁ କେବଳ ବିଜ୍ଞାନ ପ୍ରଶ୍ନ ସାହାଯ୍ୟ କରିବି।"
+
+# HOW TO EXPLAIN
+1. Greet the student warmly and acknowledge what they were working on.
+2. Explain the concept step-by-step with a real-world Odia context example.
+   (e.g. "ଗ୍ରୀଷ୍ମ ଋତୁରେ ଜଳ ଗ୍ଲାସ ଥଣ୍ଡା ହୋଇଯାଏ" for condensation)
+3. Ask ONE targeted question to check understanding.
+4. If the student is wrong, encourage first, then guide gently.
+5. Never shame a wrong answer.
+
+# SCOPE — STRICTLY THESE TOPICS:
+- Physics: Motion, Force, Laws of Motion, Gravitation, Work & Energy, Sound, Light, Electricity, Magnetic Effects
+- Chemistry: Matter, Atoms & Molecules, Chemical Reactions, Acids/Bases/Salts, Metals & Non-metals, Carbon Compounds
+- Biology: Cell, Tissues, Life Processes, Reproduction, Heredity, Environment & Ecosystem
+
+# LANGUAGE
+- Speak naturally in Odia.
+- If using English technical words, write them in English alphabet, but NEVER put English translations in brackets. 
+- Do not repeat words in multiple languages (e.g., do not say "ବଳ (Force)"). Pick one language for the word and stick to it.
+- Plain text only. Keep sentences under 15 words. Pause naturally."""
+
+
+# ---------------------------------------------------------------------------
+# Science Specialist Agent (Day 9)
+# ---------------------------------------------------------------------------
+
+class ScienceSpecialist(Agent):
+    """
+    Vigyan Saathi — a focused Physics/Chemistry/Biology expert.
+    Activated via handoff from the main Assistant when deep science help is needed.
+    Inherits full chat context so the student does not have to repeat themselves.
+    """
+
+    def __init__(self, chat_ctx: ChatContext | None = None) -> None:
+        super().__init__(
+            instructions=SCIENCE_SPECIALIST_PROMPT,
+            chat_ctx=chat_ctx,
+            tts=murf.TTS(
+                voice="Samar",             # Different Murf voice to signal the handoff
+                locale="or-IN",
+                model="FALCON",
+                style="Conversational",
+                tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
+                text_pacing=True,
+            ),
+        )
+
+    async def on_enter(self) -> None:
+        """Introduce Vigyan Saathi the moment it takes over."""
+        await self.session.generate_reply(
+            instructions=(
+                "Introduce yourself as Vigyan Saathi (ବିଜ୍ଞାନ ସାଥୀ), "
+                "Mo Saathi's Science specialist. Warmly acknowledge the topic "
+                "the student was discussing and offer to go deeper. "
+                "Keep it to 2-3 sentences in Odia script."
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -190,10 +263,12 @@ class Assistant(Agent):
             rag_context = search(query, n_results=1)
             if rag_context:
                 rag_context = rag_context[:400]  # Truncate to ~400 chars
-                turn_ctx.add_message(
-                    role="system",
-                    content=f"Ref: {rag_context}",
-                )
+                # Inject directly into the user message instead of appending a system message.
+                # This prevents Gemini 400 errors (function call must follow user/function turn).
+                if isinstance(new_message.content, str):
+                    new_message.content += f"\n\n[Context: {rag_context}]"
+                elif isinstance(new_message.content, list):
+                    new_message.content.append(f"\n\n[Context: {rag_context}]")
                 logger.debug(f"[RAG] Injected context for query: '{query[:60]}'")
 
     # -----------------------------------------------------------------------
@@ -531,6 +606,42 @@ class Assistant(Agent):
             f"A human will review this and get back to you — usually within one school day."
         )
 
+    # -----------------------------------------------------------------------
+    # Tool 9: Transfer to Science Specialist (Day 9)
+    # -----------------------------------------------------------------------
+
+    @function_tool
+    async def transfer_to_science_specialist(
+        self, context: RunContext
+    ) -> tuple[Agent, str]:
+        """
+        Hand the student off to the Science Specialist (Vigyan Saathi).
+
+        WHEN TO USE — Transfer ONLY when:
+        1. The student asks for a deep Physics, Chemistry, or Biology explanation
+           that goes beyond a brief overview (e.g. Newton's laws, atomic structure,
+           photosynthesis, chemical equations).
+        2. The student is confused after one attempt and needs expert-level guidance
+           on a specific science concept.
+        3. The student explicitly asks "can I talk to a science expert" or similar.
+
+        Do NOT transfer for:
+        - Simple one-line answers to general questions.
+        - Maths, History, or any non-science topic.
+        - Scheduling reminders or profile updates.
+
+        Before calling this tool, always say in Odia:
+        "ଏହି ପ୍ରଶ୍ନ ପାଇଁ ମୁଁ ତୁମ୍ଭକୁ ଆମ ବିଜ୍ଞାନ ବିଶେଷଜ୍ଞ 'ବିଜ୍ଞାନ ସାଥୀ' ପାଖକୁ ଯୋଡ଼ୁଛି।"
+        """
+        science_agent = ScienceSpecialist(
+            chat_ctx=self.chat_ctx.copy(exclude_instructions=True)
+        )
+        logger.info("[Tool] transfer_to_science_specialist: handing off to ScienceSpecialist")
+        import asyncio as _asyncio
+        _asyncio.create_task(increment_tool_calls(self._room_name))
+        return science_agent, "ବିଜ୍ଞାନ ସାଥୀ ସହ ଯୋଡ଼ୁଛି..."
+
+
 # ---------------------------------------------------------------------------
 # Agent server
 # ---------------------------------------------------------------------------
@@ -698,7 +809,7 @@ async def my_agent(ctx: JobContext):
         # openrouter/free routes to random models that don't support Odia script
         # google.LLM with gemini-2.0-flash is the only reliable multilingual option
         llm=google.LLM(
-            model="gemini-3.5-flash",  # Current stable Gemini model with Odia support
+            model="gemini-3.5-flash-lite",  # Lite model has much higher rate limits than standard flash
             api_key=os.environ.get("GOOGLE_API_KEY", ""),
         ),
         tts=murf.TTS(

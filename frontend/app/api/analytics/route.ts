@@ -2,6 +2,9 @@ import { createClient } from '@libsql/client';
 import { NextResponse } from 'next/server';
 import path from 'path';
 
+// Force Next.js to never statically cache this route — required for real-time data
+export const dynamic = 'force-dynamic';
+
 function getDb() {
   const dbPath = path.resolve(process.cwd(), '../backend/data/mo_saathi.db');
   return createClient({ url: `file:${dbPath}` });
@@ -93,6 +96,11 @@ export async function GET() {
       exercises_attempted:       exercises,
       daily_series,
       recent_calls,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      },
     });
 
   } catch (err: unknown) {
