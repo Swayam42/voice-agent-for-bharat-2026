@@ -55,48 +55,48 @@ A single system prompt cannot master every nuance. When a student asks for an in
   <br/>
   <i>The real-time voice pipeline and intelligence layer</i>
 </div>
+
+
 ```mermaid
-%%{init: {"look": "handDrawn"}}%%
 graph TD
-    Client[Next.js Frontend] 
-    Dash[Analytics Dashboard] 
+    Client["Next.js Frontend"]
+    Dash["Analytics Dashboard"]
 
-    LK[LiveKit Server] 
-    Agent[Python Backend] 
+    LK["LiveKit Server"]
+    Agent["Python Backend"]
 
-    DB[(SQLite Storage)] 
-    RAG[(Vector Knowledge Base)] 
+    DB[("SQLite Storage")]
+    RAG[("Vector Knowledge Base")]
 
-    Murf[Murf TTS] 
-    Gemini[Gemini Reasoning] 
-    Sarvam[Sarvam STT] 
-    Resend[Resend Mailer] 
+    Murf["Murf TTS"]
+    Gemini["Gemini Reasoning"]
+    Sarvam["Sarvam STT"]
+    Resend["Resend Mailer"]
 
     Client <-->|WebRTC| LK
-    Dash <-->|Real-time Metrics| DB
+    Dash <-->|Metrics| DB
     LK <-->|Audio Stream| Agent
-    Agent <-->|Context| DB
-    Agent <-->|Embeddings| RAG
-    
+    Agent <-->|Memory Context| DB
+    Agent <-->|Knowledge Retrieval| RAG
+
     Agent --> Sarvam
     Agent --> Gemini
     Agent --> Murf
     Agent --> Resend
-```
+````
 
 ### The Handoff Sequence
 
 ```mermaid
-%%{init: {"look": "handDrawn"}}%%
 sequenceDiagram
     participant Student
-    participant GeneralAgent as Mo Saathi
+    participant Main as Mo Saathi
     participant Specialist as Vigyan Saathi
 
-    Student->>GeneralAgent: "ନ୍ୟୁଟନଙ୍କ ଦ୍ୱିତୀୟ ନିୟମ ବୁଝାଅ"
-    GeneralAgent->>Student: "ଏହି ପ୍ରଶ୍ନ ପାଇଁ ମୁଁ ତୁମ୍ଭକୁ ବିଜ୍ଞାନ ବିଶେଷଜ୍ଞ ପାଖକୁ ଯୋଡ଼ୁଛି।"
-    GeneralAgent->>Specialist: Hand off context matrix
-    Specialist->>Student: "ନମସ୍କାର! ଆସ ନ୍ୟୁଟନଙ୍କ ନିୟମ ବିଷୟରେ ପଢ଼ିବା..."
+    Student->>Main: Newton's Second Law question
+    Main->>Student: Connecting you to the Science specialist
+    Main->>Specialist: Transfer conversation context
+    Specialist->>Student: Continues the Science explanation
 ```
 
 ---
